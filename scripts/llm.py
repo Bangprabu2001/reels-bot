@@ -16,9 +16,13 @@ MODELS = [
     os.environ.get("GEMINI_MODEL") or "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-3.5-flash",
+    "gemini-flash-latest",  # nama alias: otomatis mengarah ke model flash terbaru
+    "gemini-flash-lite-latest",  # versi ringan, biasanya lebih lega saat server ramai
 ]
 TIMEOUT = 150  # detik menunggu jawaban
 TRIES = 2  # percobaan per model
+RONDE = 3  # berapa kali seluruh daftar model diulang kalau server sibuk
+JEDA_RONDE = (60, 120)  # detik menunggu sebelum ronde berikutnya
 
 
 def _panggil(model: str, system: str, user: str, thinking: bool, gambar=None) -> dict:
@@ -56,31 +60,44 @@ def _panggil(model: str, system: str, user: str, thinking: bool, gambar=None) ->
     return json.loads(text)
 
 
-def tanya_json(system: str, user: str, gambar=None) -> dict:
+def tanya_json(system: str, user: str, gambar=None, ronde: int = RONDE) -> dict:
+    """Tanya Gemini dan kembalikan JSON. Sabar kalau server sibuk (503/429): coba model lain,
+    lalu menunggu dan mengulang. Pakai ronde=1 untuk gagal cepat."""
     terakhir = "tidak diketahui"
-    for model in dict.fromkeys(MODELS):
-        thinking = True
-        for percobaan in range(1, TRIES + 1):
-            print(f"  (AI: {model}, percobaan {percobaan})", flush=True)
-            try:
-                return _panggil(model, system, user, thinking, gambar)
-            except urllib.error.HTTPError as e:
-                terakhir = f"{model} HTTP {e.code}: {e.read().decode()[:300]}"
-                print(f"  gagal: {terakhir}", flush=True)
-                if e.code == 400 and thinking:
-                    thinking = False  # pengaturan berpikir ditolak, coba tanpa itu
-                    continue
-                if e.code == 404:
-                    break  # model tidak tersedia, pindah ke model berikutnya
-                if e.code in (429, 500, 502, 503, 504):
-                    time.sleep(10 * percobaan)
-                    continue
-                raise SystemExit(f"Gemini error: {terakhir}")
-            except (TimeoutError, socket.timeout, urllib.error.URLError) as e:
-                terakhir = f"{model} timeout/jaringan: {e}"
-                print(f"  gagal: {terakhir}", flush=True)
-                time.sleep(5 * percobaan)
-            except (KeyError, IndexError, json.JSONDecodeError) as e:
-                terakhir = f"{model} jawaban tidak valid: {e!r}"
-                print(f"  gagal: {terakhir}", flush=True)
+    for putaran in range(1, ronde + 1):
+        sibuk = False
+        for model in dict.fromkeys(MODELS):
+            thinking = True
+            for percobaan in range(1, TRIES + 1):
+                print(f"  (AI: {model}, percobaan {percobaan})", flush=True)
+                try:
+                    return _panggil(model, system, user, thinking, gambar)
+                except urllib.error.HTTPError as e:
+                    terakhir = f"{model} HTTP {e.code}: {e.read().decode()[:300]}"
+                    print(f"  gagal: {terakhir}", flush=True)
+                    if e.code == 400 and thinking:
+                        thinking = False  # pengaturan berpikir ditolak, coba tanpa itu
+                        continue
+                    if e.code == 404:
+                        break  # model tidak tersedia, pindah ke model berikutnya
+                    if e.code in (429, 500, 502, 503, 504):
+                        sibuk = True
+                        if percobaan < TRIES:
+                            time.sleep(8 * percobaan)
+                        continue
+                    raise SystemExit(f"Gemini error: {terakhir}")
+                except (TimeoutError, socket.timeout, urllib.error.URLError) as e:
+                    sibuk = True
+                    terakhir = f"{model} timeout/jaringan: {e}"
+                    print(f"  gagal: {terakhir}", flush=True)
+                    time.sleep(5 * percobaan)
+                except (KeyError, IndexError, json.JSONDecodeError) as e:
+                    terakhir = f"{model} jawaban tidak valid: {e!r}"
+                    print(f"  gagal: {terakhir}", flush=True)
+        if not sibuk or putaran == ronde:
+            break
+        jeda = JEDA_RONDE[min(putaran - 1, len(JEDA_RONDE) - 1)]
+        print(f"  server Gemini sedang sibuk. Menunggu {jeda} detik lalu mencoba lagi "
+              f"(ronde {putaran + 1} dari {ronde})...", flush=True)
+        time.sleep(jeda)
     raise SystemExit(f"Semua percobaan gagal. Terakhir: {terakhir}")

@@ -326,7 +326,7 @@ def kurator(topik: str, narasi: str, kands: list):
         f"Ada {len(valid)} gambar kandidat, bernomor 1-{len(valid)} sesuai urutan."
     )
     try:
-        hasil = tanya_json(SYS_KURATOR, user, gambar)
+        hasil = tanya_json(SYS_KURATOR, user, gambar, ronde=1)  # gagal cepat bila server sibuk
     except SystemExit as e:  # kurator gagal -> lebih baik tanpa footage daripada footage salah
         print(f"    kurator gagal ({e}), scene tanpa video latar")
         return None
