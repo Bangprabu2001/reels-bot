@@ -7,9 +7,6 @@ on:
         description: "Topik video (kosongkan untuk ambil dari topik.txt)"
         required: false
         default: ""
-  # Aktifkan untuk jadwal harian (08.00 WIB = 01.00 UTC):
-  # schedule:
-  #   - cron: "0 1 * * *"
 
 jobs:
   render:
@@ -34,8 +31,11 @@ jobs:
           pip install -r scripts/requirements.txt
           python3 scripts/pipeline.py "$TOPIK"
 
-      - name: Install dependensi Node
-        run: npm ci || npm install
+      - name: Install Remotion dan dependensi
+        run: |
+          npm install --save-exact remotion @remotion/cli @remotion/google-fonts react react-dom
+          npm install --save-dev typescript @types/react @types/react-dom
+          npx remotion versions
 
       - name: Dependensi sistem untuk Chrome headless
         run: |
