@@ -1,41 +1,53 @@
-# reels-bot (versi gratis, agentik)
+# Agen Misteri Cinematic v5 (Sejarah / Cerita / Berita)
 
-topik -> [Agen Naskah] -> [Agen Pemeriksa Fakta] -> [Agen Suara + Subtitle] -> [Agen Kurator Footage] -> Remotion render -> video 9:16
-Upload ke platform dilakukan manual.
+Pipeline video vertikal 60 detik yang berjalan penuh di GitHub Actions.
+Upload ke YouTube/TikTok dilakukan manual oleh Anda.
 
-## Fitur tampilan
-- 9 template scene: hook, fakta, mitos_fakta, big_number, bar_chart, compare, timeline, list, outro
-- Efek suara (whoosh/pop) dibuat otomatis lewat kode, dan bilah kemajuan di atas layar
-- Agen Kurator: Gemini melihat cuplikan video stok dan memilih yang cocok dengan narasi (atau tidak memakai footage sama sekali jika tidak ada yang cocok)
-- Maskot "Mimo": mulut bergerak mengikuti suara, berkedip, ekspresi senang/kaget/mikir
-- Subtitle animasi per kata
-- Video latar (b-roll) gratis dari Pixabay atau Pexels (opsional)
-- Durasi target bebas: 45-180 detik (atau lebih)
-- Musik latar: taruh file `musik.mp3` di folder `public/` (otomatis dipakai, volume kecil)
+## Setup (sekali saja)
+1. Buat repo GitHub, unggah semua isi folder ini.
+2. Settings > Secrets and variables > Actions > New repository secret:
+   - `GEMINI_API_KEY` : gratis di https://aistudio.google.com/apikey
+   - `PIXABAY_API_KEY` : gratis, lihat di https://pixabay.com/api/docs/ setelah login
+   - (opsional) `PEXELS_API_KEY` : pendaftaran key baru Pexels sedang dijeda
+3. (Disarankan) Taruh 2-3 musik bebas royalti (.mp3) di `assets/music/`
+   atau per tema: `assets/music/sejarah/`, `assets/music/cerita/`, `assets/music/berita/`.
 
-## Render di cloud (laptop tidak terbebani)
-1. Unggah isi folder ini ke repo GitHub (timpa file lama).
-2. Settings -> Secrets and variables -> Actions -> New repository secret:
-   - `GEMINI_API_KEY` (wajib, dari Google AI Studio)
-   - `PIXABAY_API_KEY` (opsional, untuk b-roll; kunci ada di pixabay.com/api/docs setelah login)
-   - atau `PEXELS_API_KEY` (alternatif, dari pexels.com/api)
-3. Tab Actions -> "Buat dan render video" -> Run workflow: isi topik, pilih durasi.
-4. Unduh artifact `video-siap-upload`, tonton, cek "Cek manual" di log, lalu upload sendiri.
+## Menjalankan
+Tab **Actions** > **Buat Video Misteri** > **Run workflow** > pilih tema, isi topik (boleh kosong).
+Setelah selesai, unduh **Artifacts** di bagian bawah halaman run.
 
-## Di laptop (opsional)
-```bash
-npm i --save-exact remotion @remotion/cli @remotion/google-fonts react react-dom
-npm i -D typescript @types/react @types/react-dom
-pip install -r scripts/requirements.txt
-python3 scripts/pipeline.py "topik kamu" 90
-npm run studio      # preview
-npm run render      # out/video.mp4
-```
-`npm run render:contoh` merender contoh bawaan (data/example.json) tanpa suara.
+## Isi hasil
+- `video.mp4`      video 1080x1920
+- `caption.txt`    judul, deskripsi, hashtag, disclaimer
+- `verify.md`      klaim yang harus dicek + sumber + kredit footage
+- `thumbnail.jpg`  frame awal (bisa dipakai/ditimpa)
+- `script.json`    skrip lengkap
+
+## Kustomisasi
+- Gaya per tema (suara, warna, font, grade): `config/themes.yml`
+- Model Gemini: env `GEMINI_MODEL` (default `gemini-2.5-flash`)
 
 ## Catatan
-- Model Gemini utama bisa diganti: `GEMINI_MODEL=...` (ada model cadangan otomatis).
-- Suara: `VOICE=id-ID-GadisNeural` untuk suara perempuan.
-- Pemeriksa fakta mencetak "Cek manual" di log; selalu baca sebelum upload.
-- Video Pixabay/Pexels boleh dipakai gratis; mencantumkan kredit tidak wajib (log mencetak daftar kreditnya). Pixabay kebanyakan video landscape, jadi di layar vertikal bagian tengahnya yang dipotong.
-- Tambah template baru: komponen di `src/scenes/`, tipe di `src/types.ts`, daftar di `src/scenes/index.tsx`, dan skema di `scripts/pipeline.py`.
+- Selalu baca `verify.md` sebelum upload, terutama tema sejarah & berita.
+- Tema cerita adalah fiksi/legenda; disclaimer otomatis masuk caption.
+
+## Gaya visual (fondasi v2)
+Komik tinta hitam-putih + satu warna aksen per tema. Tiap video: ilustrasi AI per adegan
+(Pollinations, tanpa key), maksimal 2 adegan footage Pixabay sebagai variasi.
+Tokoh dibuat per cerita, gayanya sama. Typography: judul "stiker komik" + subtitle pop beraksen.
+- Batas anonim Pollinations ~1 gambar / 15 detik, jadi tahap ilustrasi memakan beberapa menit.
+- Bila ilustrasi gagal, adegan itu otomatis memakai footage (butuh PIXABAY_API_KEY).
+- Opsional: secret `POLLINATIONS_API_KEY` / `POLLINATIONS_MODEL` bila ingin mengatur model atau batas.
+
+## Gaya sinematik dokumenter (v5)
+- **A — Cinematic documentary:** komposisi bidikan punya fungsi (establishing wide, medium untuk aksi, close-up hanya untuk detail penting); gerakan kamera sangat halus dengan zoom/pan kecil, durasi bidikan lebih panjang.
+- **B — Visual mengikuti cerita:** prompt storyboard diarahkan untuk menggambarkan isi narasi secara spesifik. Setiap adegan menambahkan informasi visual baru, menjaga konsistensi palet, era, cuaca dan tokoh, serta memakai transisi dissolve yang tenang.
+- **C — Identitas Agen Misteri:** penanda brand kecil, judul pembuka sederhana, subtitle stabil tanpa efek memantul, dan penutup ringkas. Tipografi tidak lagi membanting atau bergetar.
+- Tidak ada whoosh/hit, kilatan putih, garis kecepatan, getaran kamera, atau noise film. Hanya narasi dan musik latar lembut (jika tersedia); musik otomatis diredam saat narasi.
+- Tempo suara dibuat lebih santai dan jeda antarscene diperpanjang. Jika video melewati 60 detik, jangan memaksa narasi dipercepat; rapikan naskah.
+- Gambar lebih baik bila memakai key gratis dari https://enter.pollinations.ai: simpan sebagai secret `POLLINATIONS_API_KEY` (model default `flux`).
+
+### Catatan V5
+- Subtitle/brand/title dirender melalui ASS. Pastikan font Montserrat dan DejaVu tersedia di runner.
+- Musik bersifat opsional. Jika folder `assets/music/` kosong, render menggunakan narasi saja.
+- Output belum dianggap teruji sampai satu render penuh berhasil di GitHub Actions; periksa Artifact, sinkronisasi subtitle, dan audio sebelum upload.
