@@ -9,7 +9,7 @@ import re
 import urllib.error
 import urllib.request
 
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 
 def tanya_json(system: str, user: str) -> dict:
