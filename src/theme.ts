@@ -13,6 +13,6 @@ export const theme = {
   accent2: "#3EC1FF", // cyan
   text: "#F7F9FF",
   // Area aman Reels/Shorts: UI platform menutup bagian bawah & kanan.
-  // Bawah dibuat lebih besar karena subtitle duduk di atas zona UI.
-  safe: { top: 160, bottom: 470, side: 70 },
+  // Bawah diberi ruang untuk baris maskot + subtitle di atas zona UI.
+  safe: { top: 160, bottom: 600, side: 70 },
 };

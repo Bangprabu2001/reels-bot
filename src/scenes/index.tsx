@@ -3,8 +3,13 @@ import type { Scene } from "../types";
 import { HookScene } from "./HookScene";
 import { BarChartScene } from "./BarChartScene";
 import { ListScene } from "./ListScene";
+import { BigNumberScene } from "./BigNumberScene";
+import { CompareScene } from "./CompareScene";
+import { TimelineScene } from "./TimelineScene";
+import { OutroScene } from "./OutroScene";
 
-// Tambah template baru: buat komponennya, tambah tipenya di types.ts, lalu daftarkan di sini.
+// Tambah template baru: buat komponennya, tambah tipenya di types.ts, lalu daftarkan di sini
+// dan di SKEMA pada scripts/pipeline.py.
 export const renderScene = (scene: Scene): React.ReactElement => {
   switch (scene.type) {
     case "hook":
@@ -13,5 +18,13 @@ export const renderScene = (scene: Scene): React.ReactElement => {
       return <BarChartScene scene={scene} />;
     case "list":
       return <ListScene scene={scene} />;
+    case "big_number":
+      return <BigNumberScene scene={scene} />;
+    case "compare":
+      return <CompareScene scene={scene} />;
+    case "timeline":
+      return <TimelineScene scene={scene} />;
+    case "outro":
+      return <OutroScene scene={scene} />;
   }
 };
