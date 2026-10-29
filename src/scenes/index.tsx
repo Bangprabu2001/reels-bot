@@ -6,9 +6,11 @@ import { ListScene } from "./ListScene";
 import { BigNumberScene } from "./BigNumberScene";
 import { CompareScene } from "./CompareScene";
 import { TimelineScene } from "./TimelineScene";
+import { FaktaScene } from "./FaktaScene";
+import { MitosFaktaScene } from "./MitosFaktaScene";
 import { OutroScene } from "./OutroScene";
 
-// Tambah template baru: buat komponennya, tambah tipenya di types.ts, lalu daftarkan di sini
+// Tambah template baru: buat komponennya, tambah tipenya di types.ts, daftarkan di sini
 // dan di SKEMA pada scripts/pipeline.py.
 export const renderScene = (scene: Scene): React.ReactElement => {
   switch (scene.type) {
@@ -24,6 +26,10 @@ export const renderScene = (scene: Scene): React.ReactElement => {
       return <CompareScene scene={scene} />;
     case "timeline":
       return <TimelineScene scene={scene} />;
+    case "fakta":
+      return <FaktaScene scene={scene} />;
+    case "mitos_fakta":
+      return <MitosFaktaScene scene={scene} />;
     case "outro":
       return <OutroScene scene={scene} />;
   }

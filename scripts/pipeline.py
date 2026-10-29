@@ -1,4 +1,5 @@
-"""Pipeline agen: Naskah -> Pemeriksa Fakta -> Suara+Subtitle -> B-roll -> data/latest.json
+"""Pipeline agen:
+Naskah -> Pemeriksa Fakta -> Suara+Subtitle -> Kurator Footage (b-roll) -> data/latest.json
 
 Pemakaian:
     pip install -r scripts/requirements.txt
@@ -10,12 +11,14 @@ Pemakaian:
 Setelah itu render: npm run render
 """
 import asyncio
+import base64
 import datetime
 import json
 import os
 import re
 import shutil
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -23,39 +26,46 @@ from pathlib import Path
 import edge_tts
 
 from llm import tanya_json
+from sfx import buat_sfx
 
 ROOT = Path(__file__).resolve().parent.parent
 VOICE = os.environ.get("VOICE", "id-ID-ArdiNeural")  # alternatif: id-ID-GadisNeural
 PIXABAY_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
-ALLOWED = {"hook", "bar_chart", "list", "big_number", "compare", "timeline", "outro"}
+UA = {"User-Agent": "reels-bot"}
+ALLOWED = {
+    "hook", "bar_chart", "list", "big_number", "compare",
+    "timeline", "fakta", "mitos_fakta", "outro",
+}
 EKSPRESI = {"senang", "kaget", "mikir"}
 
 SKEMA = """Jenis scene yang boleh dipakai (semuanya boleh punya "ekspresi" dan "broll"):
 - {"type":"hook","durasi":3,"narasi":"...","teks":"kalimat pendek; kata penting diapit *bintang*"}
-- {"type":"bar_chart","durasi":6,"narasi":"...","judul":"...","satuan":"...","data":[{"label":"...","nilai":0}]}
-- {"type":"list","durasi":7,"narasi":"...","judul":"...","poin":[{"ikon":"satu emoji","teks":"..."}]}
+- {"type":"fakta","durasi":4,"narasi":"...","teks":"pernyataan singkat; kata penting diapit *bintang*","ikon":"satu emoji"}
+- {"type":"mitos_fakta","durasi":7,"narasi":"...","mitos":"anggapan keliru (singkat)","fakta":"yang benar (singkat)"}
 - {"type":"big_number","durasi":6,"narasi":"...","judul":"...","angka":0,"satuan":"...","keterangan":"..."}
+- {"type":"bar_chart","durasi":6,"narasi":"...","judul":"...","satuan":"...","data":[{"label":"...","nilai":0}]}
 - {"type":"compare","durasi":8,"narasi":"...","judul":"...","kiri":{"nama":"...","poin":["..."]},"kanan":{"nama":"...","poin":["..."]}}
 - {"type":"timeline","durasi":8,"narasi":"...","judul":"...","langkah":[{"label":"...","teks":"..."}]}
+- {"type":"list","durasi":7,"narasi":"...","judul":"...","poin":[{"ikon":"satu emoji","teks":"..."}]}
 - {"type":"outro","durasi":4,"narasi":"...","teks":"ajakan singkat; kata penting diapit *bintang*"}
-Field umum: "ekspresi" = "senang" | "kaget" | "mikir"; "broll" = kata kunci bahasa Inggris untuk video stok (atau "")."""
+Field umum: "ekspresi" = "senang" | "kaget" | "mikir"; "broll" = daftar 1-3 kata kunci pencarian video stok (bahasa Inggris), atau []."""
 
 
 def sys_naskah(durasi: int) -> str:
     kata = int(durasi * 2.4)
-    n = max(5, round(durasi / 9))
+    n = max(6, round(durasi / 6))
     return f"""Kamu Agen Naskah untuk video pendek (Reels/Shorts) berbahasa Indonesia: hiburan + edukasi, ritme cepat, santai.
 Balas HANYA JSON valid berbentuk {{"scenes":[...]}}.
 {SKEMA}
 Aturan:
-- Target total sekitar {durasi} detik: seluruh narasi sekitar {kata} kata, sekitar {n} scene.
-- Struktur: hook (scene pertama) -> konteks singkat -> 3-5 bagian isi yang membahas topik sampai tuntas (jelaskan sebab-akibat, bukan sekadar daftar) -> ringkasan -> outro (scene terakhir).
-- Variasikan jenis scene; jangan memakai jenis yang sama lebih dari dua kali berturut-turut. Pakai bar_chart, big_number, atau compare hanya jika ada data nyata.
-- Narasi lisan dan natural, maksimal sekitar 40 kata per scene. Jangan menyebut kata "scene".
+- Target total sekitar {durasi} detik: seluruh narasi sekitar {kata} kata, sekitar {n} scene PENDEK (4-8 detik tiap scene). Lebih baik banyak scene pendek daripada sedikit scene panjang.
+- Narasi maksimal 22 kata per scene. Kalimat pendek, lisan, natural. Jangan menyebut kata "scene".
+- Struktur: hook (scene pertama, kalimat pemancing yang kuat) -> konteks singkat -> 3-5 bagian isi yang membahas topik sampai tuntas (jelaskan sebab-akibat, bukan sekadar daftar) -> ringkasan -> outro (scene terakhir).
+- Variasikan jenis scene; jangan memakai jenis yang sama dua kali berturut-turut. Pakai "fakta" dan "mitos_fakta" untuk ritme cepat. Pakai bar_chart, big_number, compare hanya jika ada data nyata.
 - Hanya fakta yang kamu yakin akurat; angka boleh dibulatkan; jangan mengarang statistik atau sumber.
 - "ekspresi" menyesuaikan nada narasi.
-- "broll": 2-3 kata kunci bahasa Inggris untuk video stok yang konkret dan bisa difilmkan (contoh "ocean waves", "city traffic"), atau "" bila sebaiknya tanpa video. Gunakan di sekitar separuh scene.
+- "broll": 1-3 kata kunci bahasa Inggris dari yang paling spesifik ke yang lebih umum, berupa objek konkret yang benar-benar disebut di narasi dan bisa difilmkan (hewan, tempat, benda, aktivitas), misalnya ["cheetah running", "wild cat"]. Hindari kata abstrak. Beri [] untuk scene abstrak dan scene grafik/data (bar_chart, big_number, compare, timeline, mitos_fakta). Utamakan hook, fakta, dan scene cerita.
 - Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat."""
 
 
@@ -65,6 +75,13 @@ Pertahankan struktur, urutan scene, dan semua field (termasuk "ekspresi" dan "br
 Balas HANYA JSON valid dengan bentuk {{"scenes":[...]}}, ditambah field
 "catatan_fakta": daftar string singkat tentang hal yang perlu dicek manusia (kosongkan jika tidak ada).
 {SKEMA}"""
+
+SYS_KURATOR = """Kamu Agen Kurator Footage untuk video edukasi vertikal. Kamu melihat beberapa gambar cuplikan (thumbnail) video stok.
+Pilih SATU gambar yang paling cocok sebagai video latar untuk narasi scene.
+Pilih hanya jika isi gambar benar-benar sesuai dengan tema dan narasi (objek, hewan, tempat, atau suasana yang disebut jelas terlihat).
+Jawab 0 jika semua gambar generik, tidak nyambung, memuat teks/logo/watermark yang mencolok, atau menampilkan orang yang tidak relevan.
+Lebih baik menjawab 0 daripada memilih footage yang salah.
+Balas HANYA JSON: {"pilihan": <nomor gambar atau 0>, "alasan": "<satu kalimat>"}"""
 
 
 def validasi(n: dict) -> dict:
@@ -88,6 +105,11 @@ def validasi(n: dict) -> dict:
                 s[sisi]["poin"] = s[sisi]["poin"][:3]
         elif t == "timeline":
             s["langkah"] = s["langkah"][:4]
+        elif t == "fakta":
+            s["ikon"] = str(s.get("ikon") or "💡")
+        elif t == "mitos_fakta":
+            if not s.get("mitos") or not s.get("fakta"):
+                raise SystemExit("Scene mitos_fakta harus punya 'mitos' dan 'fakta'.")
         elif t == "big_number":
             try:
                 s["angka"] = float(s["angka"])
@@ -97,14 +119,17 @@ def validasi(n: dict) -> dict:
                 s["angka"] = int(s["angka"])
         if s.get("ekspresi") not in EKSPRESI:
             s["ekspresi"] = "senang"
-        s["broll"] = str(s.get("broll") or "").strip()
+        b = s.get("broll")
+        if isinstance(b, str):
+            b = [b]
+        s["broll"] = [str(x).strip() for x in (b or []) if str(x).strip()][:3]
     if scenes[-1].get("type") != "outro":
         scenes.append(
             {
                 "type": "outro",
                 "durasi": 4,
                 "ekspresi": "senang",
-                "broll": "",
+                "broll": [],
                 "narasi": "Ikuti untuk fakta seru lainnya!",
                 "teks": "Ikuti untuk fakta *seru* lainnya!",
             }
@@ -159,36 +184,12 @@ async def agen_suara(naskah: dict, slug: str) -> dict:
     return naskah
 
 
+# ---------------------------------------------------------------- B-roll
+
 def _json(url: str, headers=None) -> dict:
-    req = urllib.request.Request(url, headers=headers or {"User-Agent": "reels-bot"})
+    req = urllib.request.Request(url, headers=headers or UA)
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)
-
-
-def _pexels(url: str) -> dict:
-    return _json(url, {"Authorization": PEXELS_KEY, "User-Agent": "reels-bot"})
-
-
-def cari_broll(query: str, min_detik: float, dipakai: set):
-    """Cari video stok di Pexels; utamakan yang portrait dan cukup panjang."""
-    for orientasi in ("portrait", None):
-        param = {"query": query, "per_page": 12}
-        if orientasi:
-            param["orientation"] = orientasi
-        data = _pexels("https://api.pexels.com/videos/search?" + urllib.parse.urlencode(param))
-        videos = [v for v in data.get("videos", []) if v.get("id") not in dipakai]
-        videos.sort(key=lambda v: v.get("duration", 0) < min_detik)  # klip cukup panjang lebih dulu
-        for v in videos:
-            files = [
-                f
-                for f in v.get("video_files", [])
-                if f.get("file_type") == "video/mp4" and (f.get("width") or 0) >= 540
-            ]
-            if not files:
-                continue
-            f = min(files, key=lambda f: abs(f["width"] - 720))  # ukuran sedang, hemat unduhan
-            return f["link"], v["id"], (v.get("user") or {}).get("name", "?")
-    return None
 
 
 def _varian_pixabay(hit: dict):
@@ -207,51 +208,147 @@ def _varian_pixabay(hit: dict):
     return bagus[0] if bagus else None
 
 
-def _portrait_pixabay(hit: dict) -> bool:
-    return any(
-        (v or {}).get("height", 0) > (v or {}).get("width", 0)
-        for v in (hit.get("videos") or {}).values()
-    )
+def _thumb_pixabay(hit: dict, v: dict) -> str:
+    if v.get("thumbnail"):
+        return v["thumbnail"]
+    for x in (hit.get("videos") or {}).values():
+        if (x or {}).get("thumbnail"):
+            return x["thumbnail"]
+    if hit.get("picture_id"):
+        return f"https://i.vimeocdn.com/video/{hit['picture_id']}_640x360.jpg"
+    return ""
 
 
-def cari_broll_pixabay(query: str, min_detik: float, dipakai: set):
-    """Cari video stok di Pixabay. Kebanyakan landscape; di layar dipotong bagian tengahnya."""
-    kandidat: list = []
-    for tinggi_min in (1280, 0):  # coba cari yang portrait dulu
+def kandidat_pixabay(query: str, dipakai: set) -> list:
+    """Kumpulkan kandidat video dari Pixabay (portrait lebih dulu, lalu umum)."""
+    hasil: dict = {}
+    for tinggi_min in (1280, 0):
         param = {
             "key": PIXABAY_KEY,
             "q": query[:100],
             "video_type": "all",
-            "per_page": 20,
+            "per_page": 15,
             "safesearch": "true",
         }
         if tinggi_min:
             param["min_height"] = tinggi_min
         data = _json("https://pixabay.com/api/videos/?" + urllib.parse.urlencode(param))
-        kandidat = [h for h in data.get("hits", []) if h.get("id") not in dipakai]
-        if tinggi_min:
-            kandidat = [h for h in kandidat if _portrait_pixabay(h)]
-        if kandidat:
-            break
-    kandidat.sort(key=lambda h: h.get("duration", 0) < min_detik)  # klip cukup panjang lebih dulu
-    for h in kandidat:
-        v = _varian_pixabay(h)
-        if v:
-            return v["url"], h["id"], h.get("user", "?")
-    return None
+        for h in data.get("hits", []):
+            if h.get("id") in dipakai or h.get("id") in hasil:
+                continue
+            v = _varian_pixabay(h)
+            if not v:
+                continue
+            hasil[h["id"]] = {
+                "id": h["id"],
+                "link": v["url"],
+                "thumb": _thumb_pixabay(h, v),
+                "durasi": h.get("duration", 0),
+                "pembuat": h.get("user", "?"),
+                "tags": (h.get("tags") or "").lower(),
+                "portrait": v.get("height", 0) > v.get("width", 0),
+            }
+    return list(hasil.values())
+
+
+def kandidat_pexels(query: str, dipakai: set) -> list:
+    """Kumpulkan kandidat video dari Pexels (cadangan bila tidak ada kunci Pixabay)."""
+    hasil: dict = {}
+    for orientasi in ("portrait", None):
+        param = {"query": query, "per_page": 12}
+        if orientasi:
+            param["orientation"] = orientasi
+        data = _json(
+            "https://api.pexels.com/videos/search?" + urllib.parse.urlencode(param),
+            {"Authorization": PEXELS_KEY, **UA},
+        )
+        for v in data.get("videos", []):
+            if v.get("id") in dipakai or v.get("id") in hasil:
+                continue
+            files = [
+                f
+                for f in v.get("video_files", [])
+                if f.get("file_type") == "video/mp4" and (f.get("width") or 0) >= 540
+            ]
+            if not files:
+                continue
+            f = min(files, key=lambda f: abs(f["width"] - 720))
+            hasil[v["id"]] = {
+                "id": v["id"],
+                "link": f["link"],
+                "thumb": v.get("image", ""),
+                "durasi": v.get("duration", 0),
+                "pembuat": (v.get("user") or {}).get("name", "?"),
+                "tags": (v.get("url") or "").lower(),  # alamat halaman memuat kata judul
+                "portrait": (f.get("height") or 0) > (f.get("width") or 0),
+            }
+    return list(hasil.values())
+
+
+def _kata(teks: str) -> set:
+    return set(re.findall(r"[a-z]{3,}", teks.lower()))
+
+
+def peringkat(kands: list, queries: list, min_detik: float, batas: int = 6) -> list:
+    """Urutkan kandidat: tag cocok dengan kata kunci, cukup panjang, lalu portrait."""
+    kunci = set()
+    for q in queries:
+        kunci |= _kata(q)
+
+    def skor(k):
+        return (len(kunci & _kata(k["tags"])), k["durasi"] >= min_detik, k["portrait"])
+
+    return sorted(kands, key=skor, reverse=True)[:batas]
+
+
+def _ambil_gambar(url: str) -> str:
+    req = urllib.request.Request(url, headers=UA)
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = r.read(4_000_000)
+    return base64.b64encode(data).decode()
+
+
+def kurator(topik: str, narasi: str, kands: list):
+    """Agen Kurator: Gemini melihat thumbnail kandidat dan memilih yang paling cocok (atau tidak ada)."""
+    gambar, valid = [], []
+    for k in kands:
+        if not k["thumb"]:
+            continue
+        try:
+            gambar.append(_ambil_gambar(k["thumb"]))
+            valid.append(k)
+        except Exception:
+            continue
+    if not valid:
+        return None
+    user = (
+        f"Tema video: {topik}\nNarasi scene: \"{narasi}\"\n"
+        f"Ada {len(valid)} gambar kandidat, bernomor 1-{len(valid)} sesuai urutan."
+    )
+    try:
+        hasil = tanya_json(SYS_KURATOR, user, gambar)
+    except SystemExit as e:  # kurator gagal -> lebih baik tanpa footage daripada footage salah
+        print(f"    kurator gagal ({e}), scene tanpa video latar")
+        return None
+    try:
+        n = int(hasil.get("pilihan", 0))
+    except (TypeError, ValueError):
+        n = 0
+    print(f"    kurator: pilihan {n} - {hasil.get('alasan', '')}")
+    return valid[n - 1] if 1 <= n <= len(valid) else None
 
 
 def unduh(link: str, path: Path) -> None:
-    req = urllib.request.Request(link, headers={"User-Agent": "reels-bot"})
+    req = urllib.request.Request(link, headers=UA)
     with urllib.request.urlopen(req, timeout=180) as r, open(path, "wb") as f:
         shutil.copyfileobj(r, f)
 
 
-def agen_broll(naskah: dict, slug: str) -> dict:
+def agen_broll(naskah: dict, slug: str, topik: str) -> dict:
     if PIXABAY_KEY:
-        sumber, cari = "Pixabay", cari_broll_pixabay
+        sumber, cari = "Pixabay", kandidat_pixabay
     elif PEXELS_KEY:
-        sumber, cari = "Pexels", cari_broll
+        sumber, cari = "Pexels", kandidat_pexels
     else:
         print("  (PIXABAY_API_KEY / PEXELS_API_KEY kosong, b-roll dilewati)")
         return naskah
@@ -261,25 +358,38 @@ def agen_broll(naskah: dict, slug: str) -> dict:
     dipakai: set = set()
     kredit = []
     for i, s in enumerate(naskah["scenes"]):
-        q = s.get("broll")
-        if not q:
+        queries = s.get("broll") or []
+        if not queries:
             continue
         try:
-            hasil = cari(q, s["durasi"], dipakai)
-            if not hasil:
-                print(f"  scene {i}: tidak ada video untuk '{q}', dilewati")
+            pool: list = []
+            for q in queries:
+                for k in cari(q, dipakai):
+                    if all(k["id"] != x["id"] for x in pool):
+                        pool.append(k)
+                if len(pool) >= 12:
+                    break
+            if not pool:
+                print(f"  scene {i}: tidak ada video untuk {queries}, pakai latar biasa")
                 continue
-            link, vid, pembuat = hasil
-            unduh(link, folder / f"scene_{i}.mp4")
+            print(f"  scene {i}: {len(pool)} kandidat untuk {queries}")
+            pilih = kurator(topik, s["narasi"], peringkat(pool, queries, s["durasi"]))
+            time.sleep(3)  # jaga batas permintaan per menit di jalur gratis
+            if not pilih:
+                print(f"  scene {i}: tidak ada footage yang cocok, pakai latar biasa")
+                continue
+            unduh(pilih["link"], folder / f"scene_{i}.mp4")
             s["brollSrc"] = f"broll/{slug}/scene_{i}.mp4"
-            dipakai.add(vid)
-            kredit.append(f"Video by {pembuat} on {sumber} ({q})")
-            print(f"  scene {i}: b-roll '{q}' terpasang")
+            dipakai.add(pilih["id"])
+            kredit.append(f"Video by {pilih['pembuat']} on {sumber} ({queries[0]})")
+            print(f"  scene {i}: b-roll terpasang")
         except Exception as e:  # b-roll hanya pemanis, jangan sampai menggagalkan video
             print(f"  scene {i}: b-roll gagal ({e}), lanjut tanpa video latar")
     naskah["kredit_broll"] = kredit
     return naskah
 
+
+# ---------------------------------------------------------------- utama
 
 def pilih_topik() -> str:
     arg = sys.argv[1].strip() if len(sys.argv) > 1 else ""
@@ -313,9 +423,11 @@ def main() -> None:
     catatan = naskah.get("catatan_fakta") or []
     print("[3/4] Agen Suara + Subtitle...")
     naskah = asyncio.run(agen_suara(naskah, slug))
-    print("[4/4] Agen B-roll...")
-    naskah = agen_broll(naskah, slug)
+    print("[4/4] Agen Kurator Footage (b-roll)...")
+    naskah = agen_broll(naskah, slug, topik)
 
+    buat_sfx(ROOT / "public" / "sfx")  # efek suara whoosh/pop dibuat lewat kode
+    naskah["sfx"] = True
     if (ROOT / "public" / "musik.mp3").exists():
         naskah["musikSrc"] = "musik.mp3"
 

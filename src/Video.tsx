@@ -10,6 +10,7 @@ import {
 } from "remotion";
 import { BawahLayar } from "./components/Captions";
 import { SceneContext } from "./components/SceneContext";
+import { Sfx } from "./components/Sfx";
 import { renderScene } from "./scenes";
 import { theme } from "./theme";
 import type { VideoProps } from "./types";
@@ -29,7 +30,26 @@ const IsiScene: React.FC<{ frames: number; children: React.ReactNode }> = ({
   );
 };
 
-export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc }) => {
+// Bilah kemajuan tipis di atas: trik umum untuk menjaga penonton sampai akhir.
+const BilahKemajuan: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 128,
+        height: 10,
+        width: `${(frame / durationInFrames) * 100}%`,
+        background: theme.accent,
+        borderRadius: 5,
+      }}
+    />
+  );
+};
+
+export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc, sfx }) => {
   const { fps } = useVideoConfig();
 
   return (
@@ -39,19 +59,21 @@ export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc }) => {
           const frames = Math.max(1, Math.round(scene.durasi * fps));
           return (
             <Series.Sequence key={i} durationInFrames={frames}>
-              <SceneContext.Provider value={{ brollSrc: scene.brollSrc }}>
+              <SceneContext.Provider value={{ brollSrc: scene.brollSrc, sfx }}>
                 <IsiScene frames={frames}>{renderScene(scene)}</IsiScene>
                 <BawahLayar
                   kata={scene.kata}
                   ekspresi={scene.ekspresi}
                   caption={scene.type !== "hook" && scene.type !== "outro"}
                 />
+                <Sfx nama="whoosh" volume={0.3} />
               </SceneContext.Provider>
               {scene.audioSrc ? <Audio src={staticFile(scene.audioSrc)} /> : null}
             </Series.Sequence>
           );
         })}
       </Series>
+      <BilahKemajuan />
       {musikSrc ? <Audio src={staticFile(musikSrc)} volume={0.12} loop /> : null}
     </AbsoluteFill>
   );

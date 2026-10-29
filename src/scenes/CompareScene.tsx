@@ -2,6 +2,7 @@ import React from "react";
 import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Background } from "../components/Background";
 import { KineticText } from "../components/KineticText";
+import { Sfx } from "../components/Sfx";
 import { theme } from "../theme";
 import type { CompareScene as Props, Sisi } from "../types";
 
@@ -52,6 +53,9 @@ export const CompareScene: React.FC<{ scene: Props }> = ({ scene }) => {
 
   return (
     <Background>
+      <Sfx nama="pop" dari={16} volume={0.25} />
+      <Sfx nama="pop" dari={26} volume={0.25} />
+      <Sfx nama="pop" dari={34} volume={0.3} />
       <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
         <div style={{ marginBottom: 50 }}>
           <KineticText text={scene.judul} size={66} stagger={3} />

@@ -21,7 +21,12 @@ export const Background: React.FC<{ children: React.ReactNode }> = ({
           <OffthreadVideo
             src={staticFile(brollSrc)}
             volume={0}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transform: `scale(1.14) translate(${Math.sin(frame / 70) * 14}px, ${Math.cos(frame / 90) * 10}px)`,
+            }}
           />
           {/* lapisan gelap supaya teks tetap terbaca di atas video */}
           <AbsoluteFill

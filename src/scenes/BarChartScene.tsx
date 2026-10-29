@@ -2,6 +2,7 @@ import React from "react";
 import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Background } from "../components/Background";
 import { KineticText } from "../components/KineticText";
+import { Sfx } from "../components/Sfx";
 import { theme } from "../theme";
 import type { BarChartScene as Props } from "../types";
 
@@ -12,6 +13,9 @@ export const BarChartScene: React.FC<{ scene: Props }> = ({ scene }) => {
 
   return (
     <Background>
+      {scene.data.map((_, i) => (
+        <Sfx key={i} nama="pop" dari={18 + i * 9} volume={0.2} />
+      ))}
       <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
         <div style={{ marginBottom: 70 }}>
           <KineticText text={scene.judul} size={70} stagger={3} />

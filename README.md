@@ -1,10 +1,12 @@
 # reels-bot (versi gratis, agentik)
 
-topik -> [Agen Naskah] -> [Agen Pemeriksa Fakta] -> [Agen Suara + Subtitle] -> [Agen B-roll] -> Remotion render -> video 9:16
+topik -> [Agen Naskah] -> [Agen Pemeriksa Fakta] -> [Agen Suara + Subtitle] -> [Agen Kurator Footage] -> Remotion render -> video 9:16
 Upload ke platform dilakukan manual.
 
 ## Fitur tampilan
-- 7 template scene: hook, bar_chart, list, big_number, compare, timeline, outro
+- 9 template scene: hook, fakta, mitos_fakta, big_number, bar_chart, compare, timeline, list, outro
+- Efek suara (whoosh/pop) dibuat otomatis lewat kode, dan bilah kemajuan di atas layar
+- Agen Kurator: Gemini melihat cuplikan video stok dan memilih yang cocok dengan narasi (atau tidak memakai footage sama sekali jika tidak ada yang cocok)
 - Maskot "Mimo": mulut bergerak mengikuti suara, berkedip, ekspresi senang/kaget/mikir
 - Subtitle animasi per kata
 - Video latar (b-roll) gratis dari Pixabay atau Pexels (opsional)

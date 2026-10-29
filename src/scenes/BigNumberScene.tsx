@@ -2,6 +2,7 @@ import React from "react";
 import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Background } from "../components/Background";
 import { KineticText } from "../components/KineticText";
+import { Sfx } from "../components/Sfx";
 import { theme } from "../theme";
 import type { BigNumberScene as Props } from "../types";
 
@@ -32,6 +33,7 @@ export const BigNumberScene: React.FC<{ scene: Props }> = ({ scene }) => {
 
   return (
     <Background>
+      <Sfx nama="pop" dari={10} volume={0.3} />
       <div
         style={{
           width: "100%",

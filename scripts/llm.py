@@ -2,7 +2,7 @@
 
 Ambil API key gratis di Google AI Studio, lalu: export GEMINI_API_KEY=...
 Otomatis mencoba ulang kalau lambat/sibuk, dan pindah ke model cadangan kalau perlu.
-Model utama bisa diganti lewat GEMINI_MODEL.
+Model utama bisa diganti lewat GEMINI_MODEL. Bisa menerima gambar (base64 JPEG).
 """
 import json
 import os
@@ -21,7 +21,7 @@ TIMEOUT = 150  # detik menunggu jawaban
 TRIES = 2  # percobaan per model
 
 
-def _panggil(model: str, system: str, user: str, thinking: bool) -> dict:
+def _panggil(model: str, system: str, user: str, thinking: bool, gambar=None) -> dict:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise SystemExit("GEMINI_API_KEY belum diisi.")
@@ -31,9 +31,15 @@ def _panggil(model: str, system: str, user: str, thinking: bool) -> dict:
     if thinking:
         # "berpikir" ringan supaya cepat dan hemat jatah gratis
         config["thinkingConfig"] = {"thinkingLevel": "low"}
+
+    parts = [{"text": user}]
+    for i, b64 in enumerate(gambar or [], 1):
+        parts.append({"text": f"Gambar {i}:"})
+        parts.append({"inlineData": {"mimeType": "image/jpeg", "data": b64}})
+
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": config,
     }
     req = urllib.request.Request(
@@ -44,20 +50,20 @@ def _panggil(model: str, system: str, user: str, thinking: bool) -> dict:
     with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
         out = json.load(r)
 
-    parts = out["candidates"][0]["content"]["parts"]
-    text = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+    hasil = out["candidates"][0]["content"]["parts"]
+    text = "".join(p.get("text", "") for p in hasil if not p.get("thought")).strip()
     text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.M).strip()
     return json.loads(text)
 
 
-def tanya_json(system: str, user: str) -> dict:
+def tanya_json(system: str, user: str, gambar=None) -> dict:
     terakhir = "tidak diketahui"
     for model in dict.fromkeys(MODELS):
         thinking = True
         for percobaan in range(1, TRIES + 1):
             print(f"  (AI: {model}, percobaan {percobaan})", flush=True)
             try:
-                return _panggil(model, system, user, thinking)
+                return _panggil(model, system, user, thinking, gambar)
             except urllib.error.HTTPError as e:
                 terakhir = f"{model} HTTP {e.code}: {e.read().decode()[:300]}"
                 print(f"  gagal: {terakhir}", flush=True)

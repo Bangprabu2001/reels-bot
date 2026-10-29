@@ -2,6 +2,7 @@ import React from "react";
 import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Background } from "../components/Background";
 import { KineticText } from "../components/KineticText";
+import { Sfx } from "../components/Sfx";
 import { theme } from "../theme";
 import type { ListScene as Props } from "../types";
 
@@ -11,6 +12,9 @@ export const ListScene: React.FC<{ scene: Props }> = ({ scene }) => {
 
   return (
     <Background>
+      {scene.poin.map((_, i) => (
+        <Sfx key={i} nama="pop" dari={20 + i * 16} volume={0.25} />
+      ))}
       <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
         <div style={{ marginBottom: 70 }}>
           <KineticText text={scene.judul} size={78} stagger={3} />

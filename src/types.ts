@@ -8,7 +8,7 @@ type Dasar = {
   audioSrc?: string; // relatif ke public/, mis. "audio/topik/scene_0.mp3"
   kata?: Kata[]; // timestamp per kata untuk subtitle dan gerak mulut maskot
   ekspresi?: Ekspresi; // ekspresi maskot Mimo
-  broll?: string; // kata kunci pencarian video stok (bahasa Inggris), diisi agen
+  broll?: string[]; // kata kunci pencarian video stok (bahasa Inggris), diisi agen
   brollSrc?: string; // file video latar di public/, diisi agen b-roll
 };
 
@@ -53,6 +53,18 @@ export type TimelineScene = Dasar & {
   langkah: { label: string; teks: string }[];
 };
 
+export type FaktaScene = Dasar & {
+  type: "fakta";
+  teks: string; // kata penting diapit *bintang*
+  ikon: string; // satu emoji besar
+};
+
+export type MitosFaktaScene = Dasar & {
+  type: "mitos_fakta";
+  mitos: string;
+  fakta: string;
+};
+
 export type OutroScene = Dasar & {
   type: "outro";
   teks: string;
@@ -65,9 +77,12 @@ export type Scene =
   | BigNumberScene
   | CompareScene
   | TimelineScene
+  | FaktaScene
+  | MitosFaktaScene
   | OutroScene;
 
 export type VideoProps = {
   scenes: Scene[];
   musikSrc?: string; // musik latar opsional di public/, volume dibuat kecil
+  sfx?: boolean; // true bila efek suara (public/sfx/*.wav) tersedia
 };

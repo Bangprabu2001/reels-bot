@@ -2,6 +2,7 @@ import React from "react";
 import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Background } from "../components/Background";
 import { KineticText } from "../components/KineticText";
+import { Sfx } from "../components/Sfx";
 import { theme } from "../theme";
 import type { TimelineScene as Props } from "../types";
 
@@ -17,6 +18,9 @@ export const TimelineScene: React.FC<{ scene: Props }> = ({ scene }) => {
 
   return (
     <Background>
+      {scene.langkah.map((_, i) => (
+        <Sfx key={i} nama="pop" dari={20 + i * 18} volume={0.25} />
+      ))}
       <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
         <div style={{ marginBottom: 60 }}>
           <KineticText text={scene.judul} size={68} stagger={3} />
