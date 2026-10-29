@@ -7,11 +7,24 @@ on:
         description: "Topik video (kosongkan untuk ambil dari topik.txt)"
         required: false
         default: ""
+      durasi:
+        description: "Durasi target (detik)"
+        required: false
+        default: "75"
+        type: choice
+        options:
+          - "45"
+          - "60"
+          - "75"
+          - "90"
+          - "120"
+          - "150"
+          - "180"
 
 jobs:
   render:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -23,10 +36,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Naskah, pemeriksaan fakta, suara
+      - name: Naskah, pemeriksaan fakta, suara, b-roll
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TOPIK: ${{ github.event.inputs.topik }}
+          DURASI: ${{ github.event.inputs.durasi }}
         run: |
           pip install -r scripts/requirements.txt
           python3 scripts/pipeline.py "$TOPIK"
@@ -45,7 +61,7 @@ jobs:
             libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2
 
       - name: Render
-        run: npx remotion render Reels out/video.mp4 --props=data/latest.json --concurrency=2
+        run: npx remotion render Reels out/video.mp4 --props=data/latest.json --concurrency=3 --timeout=120000
 
       - uses: actions/upload-artifact@v4
         with:
