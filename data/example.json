@@ -1,0 +1,139 @@
+{
+  "scenes": [
+    {
+      "type": "hook",
+      "durasi": 3.5,
+      "ekspresi": "kaget",
+      "narasi": "Hewan tercepat di darat bukan singa!",
+      "teks": "Hewan *tercepat* di darat bukan *singa*!"
+    },
+    {
+      "type": "mitos_fakta",
+      "durasi": 7,
+      "ekspresi": "mikir",
+      "narasi": "Banyak orang mengira singa adalah yang tercepat.",
+      "mitos": "Singa adalah hewan darat tercepat",
+      "fakta": "Cheetah jauh lebih cepat dari singa"
+    },
+    {
+      "type": "bar_chart",
+      "durasi": 6,
+      "ekspresi": "senang",
+      "narasi": "Ini perbandingan kecepatan maksimal beberapa hewan darat.",
+      "judul": "Kecepatan *maksimal* hewan darat",
+      "satuan": "km/jam",
+      "data": [
+        {
+          "label": "Cheetah",
+          "nilai": 110
+        },
+        {
+          "label": "Pronghorn",
+          "nilai": 88
+        },
+        {
+          "label": "Springbok",
+          "nilai": 88
+        },
+        {
+          "label": "Singa",
+          "nilai": 80
+        }
+      ]
+    },
+    {
+      "type": "big_number",
+      "durasi": 5,
+      "ekspresi": "kaget",
+      "narasi": "Cheetah bisa melesat dari diam sampai seratus kilometer per jam dalam sekitar tiga detik.",
+      "judul": "Akselerasi *cheetah*",
+      "angka": 3,
+      "satuan": "detik",
+      "keterangan": "dari diam ke 100 km/jam"
+    },
+    {
+      "type": "compare",
+      "durasi": 8,
+      "ekspresi": "mikir",
+      "narasi": "Cheetah dan singa punya cara berburu yang sangat berbeda.",
+      "judul": "Cheetah vs *Singa*",
+      "kiri": {
+        "nama": "Cheetah",
+        "poin": [
+          "Ramping dan ringan",
+          "Sprint puluhan detik",
+          "Berburu sendiri"
+        ]
+      },
+      "kanan": {
+        "nama": "Singa",
+        "poin": [
+          "Kuat dan berat",
+          "Maks sekitar 80 km/jam",
+          "Berburu berkelompok"
+        ]
+      }
+    },
+    {
+      "type": "timeline",
+      "durasi": 8,
+      "ekspresi": "senang",
+      "narasi": "Begini urutan perburuan cheetah.",
+      "judul": "Perburuan *cheetah*",
+      "langkah": [
+        {
+          "label": "Mengintai",
+          "teks": "Mencari mangsa dari jauh"
+        },
+        {
+          "label": "Mendekat",
+          "teks": "Merunduk pelan tanpa suara"
+        },
+        {
+          "label": "Sprint",
+          "teks": "Berlari sekuat tenaga"
+        },
+        {
+          "label": "Istirahat",
+          "teks": "Napas dipulihkan setelah mengejar"
+        }
+      ]
+    },
+    {
+      "type": "fakta",
+      "durasi": 4,
+      "ekspresi": "kaget",
+      "narasi": "Padahal cheetah hanya kuat berlari sebentar.",
+      "teks": "Cheetah hanya kuat *sprint* puluhan detik",
+      "ikon": "⏱️"
+    },
+    {
+      "type": "list",
+      "durasi": 6,
+      "ekspresi": "senang",
+      "narasi": "Tiga fakta unik tentang cheetah.",
+      "judul": "3 fakta *cheetah*",
+      "poin": [
+        {
+          "ikon": "⚡",
+          "teks": "Cepat lelah setelah sprint"
+        },
+        {
+          "ikon": "🐱",
+          "teks": "Tidak bisa mengaum"
+        },
+        {
+          "ikon": "👀",
+          "teks": "Garis hitam di wajah mengurangi silau"
+        }
+      ]
+    },
+    {
+      "type": "outro",
+      "durasi": 4,
+      "ekspresi": "senang",
+      "narasi": "Ikuti untuk fakta seru lainnya!",
+      "teks": "Ikuti untuk fakta *seru* lainnya!"
+    }
+  ]
+}
