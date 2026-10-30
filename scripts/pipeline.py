@@ -1,10 +1,10 @@
 """Pipeline agen:
-Naskah -> Pemeriksa Fakta -> Suara+Subtitle -> Kurator Footage (b-roll) -> data/latest.json
+Naskah -> Pemeriksa Fakta -> Suara+Subtitle -> Ilustrator (gambar kartun) -> data/latest.json
 
 Pemakaian:
     pip install -r scripts/requirements.txt
     export GEMINI_API_KEY=...            # wajib
-    export PIXABAY_API_KEY=...           # opsional: video latar (b-roll); atau PEXELS_API_KEY
+    export POLLINATIONS_API_KEY=...      # opsional: gambar lebih cepat dan tanpa watermark
     python3 scripts/pipeline.py "kenapa langit berwarna biru" 90
         (angka terakhir = durasi target dalam detik; bisa juga lewat env DURASI)
     python3 scripts/pipeline.py          # tanpa topik: ambil dari topik.txt
@@ -13,6 +13,7 @@ Setelah itu render: npm run render
 import asyncio
 import base64
 import datetime
+import hashlib
 import json
 import os
 import random
@@ -20,6 +21,7 @@ import re
 import shutil
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -32,19 +34,25 @@ from sfx import buat_sfx, peta_sfx
 ROOT = Path(__file__).resolve().parent.parent
 VOICE = os.environ.get("VOICE", "id-ID-ArdiNeural")  # alternatif: id-ID-GadisNeural
 RATE = os.environ.get("KECEPATAN") or "+6%"  # sedikit lebih cepat terdengar lebih bertenaga
-TEMA_VALID = ["klasik", "neon", "sunset", "hutan", "kontras"]
-KARAKTER_VALID = ["mimo", "bolt", "miko"]
+TEMA_VALID = ["gelap", "neon"]
+POLLI_KEY = os.environ.get("POLLINATIONS_API_KEY", "").strip()  # opsional: batas lebih longgar, tanpa watermark
+MAKS_GAMBAR = int(os.environ.get("MAKS_GAMBAR") or 14)
+STYLE = (
+    "children's storybook cartoon illustration, flat vector style, thick clean outlines, "
+    "bold saturated colors, dark moody night background with glowing accents, simple shapes, "
+    "vertical composition, no text, no letters, no watermark"
+)
 PIXABAY_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 UA = {"User-Agent": "reels-bot"}
 ALLOWED = {
-    "hook", "bar_chart", "list", "big_number", "compare",
+    "hook", "cerita", "bar_chart", "list", "big_number", "compare",
     "timeline", "fakta", "mitos_fakta", "outro",
 }
-EKSPRESI = {"senang", "kaget", "mikir"}
 
-SKEMA = """Jenis scene yang boleh dipakai (semuanya boleh punya "ekspresi" dan "broll"):
+SKEMA = """Jenis scene yang boleh dipakai (semuanya wajib punya "gambar"):
 - {"type":"hook","durasi":3,"narasi":"...","teks":"kalimat pendek; kata penting diapit *bintang*"}
+- {"type":"cerita","durasi":6,"narasi":"..."}   (hanya narasi di atas ilustrasi; subtitle tampil di tengah layar)
 - {"type":"fakta","durasi":4,"narasi":"...","teks":"pernyataan singkat; kata penting diapit *bintang*","ikon":"satu emoji"}
 - {"type":"mitos_fakta","durasi":7,"narasi":"...","mitos":"anggapan keliru (singkat)","fakta":"yang benar (singkat)"}
 - {"type":"big_number","durasi":6,"narasi":"...","judul":"...","angka":0,"satuan":"...","keterangan":"..."}
@@ -53,7 +61,7 @@ SKEMA = """Jenis scene yang boleh dipakai (semuanya boleh punya "ekspresi" dan "
 - {"type":"timeline","durasi":8,"narasi":"...","judul":"...","langkah":[{"label":"...","teks":"..."}]}
 - {"type":"list","durasi":7,"narasi":"...","judul":"...","poin":[{"ikon":"satu emoji","teks":"..."}]}
 - {"type":"outro","durasi":4,"narasi":"...","teks":"ajakan singkat; kata penting diapit *bintang*"}
-Field umum: "ekspresi" = "senang" | "kaget" | "mikir"; "broll" = daftar 1-3 kata kunci pencarian video stok (bahasa Inggris), atau []."""
+Field umum: "gambar" = satu kalimat bahasa Inggris yang menggambarkan SATU adegan ilustrasi kartun untuk scene itu (subjek, aksi, latar, suasana; tanpa teks atau huruf)."""
 
 
 def sys_naskah(durasi: int) -> str:
@@ -66,26 +74,27 @@ Aturan:
 - Target total sekitar {durasi} detik: seluruh narasi sekitar {kata} kata, sekitar {n} scene PENDEK (4-8 detik tiap scene). Lebih baik banyak scene pendek daripada sedikit scene panjang.
 - Narasi maksimal 22 kata per scene. Kalimat pendek, lisan, natural. Jangan menyebut kata "scene".
 - Struktur: hook (scene pertama, kalimat pemancing yang kuat) -> konteks singkat -> 3-5 bagian isi yang membahas topik sampai tuntas (jelaskan sebab-akibat, bukan sekadar daftar) -> ringkasan -> outro (scene terakhir).
-- Variasikan jenis scene; jangan memakai jenis yang sama dua kali berturut-turut. Pakai "fakta" dan "mitos_fakta" untuk ritme cepat. Pakai bar_chart, big_number, compare hanya jika ada data nyata.
+- Komposisi: sekitar 60% scene bertipe "cerita" (narasi di atas ilustrasi, boleh 2-3 berturut-turut), selingi dengan "fakta", "mitos_fakta", "big_number", "bar_chart", "compare", "timeline", atau "list" hanya bila ada data atau poin yang cocok. Hook di awal, outro di akhir.
 - Hanya fakta yang kamu yakin akurat; angka boleh dibulatkan; jangan mengarang statistik atau sumber.
-- "ekspresi" menyesuaikan nada narasi.
-- "broll": 1-3 kata kunci bahasa Inggris dari yang paling spesifik ke yang lebih umum, berupa objek konkret yang benar-benar disebut di narasi dan bisa difilmkan (hewan, tempat, benda, aktivitas), misalnya ["cheetah running", "wild cat"]. Hindari kata abstrak. Beri [] untuk scene abstrak dan scene grafik/data (bar_chart, big_number, compare, timeline, mitos_fakta). Utamakan hook, fakta, dan scene cerita.
-- Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat."""
+- "gambar": untuk SETIAP scene, satu adegan ilustrasi kartun yang konkret dan mudah digambar; boleh berisi manusia, hewan, benda, tempat, atau fenomena (contoh: "a sleepy man in bed under a glowing moon", "a giant brain made of colorful gears"). Hindari teks, angka, grafik, dan logo di dalam gambar.
+- Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat.
+- Pastikan JSON valid: di dalam teks JANGAN memakai tanda kutip ganda (gunakan kutip tunggal atau tanpa kutip), tanpa koma berlebih, tanpa komentar."""
 
 
 SYS_FAKTA = f"""Kamu Agen Pemeriksa Fakta. Kamu menerima naskah video JSON.
 Periksa setiap klaim dan angka. Perbaiki yang salah atau meragukan, ganti dengan versi yang lebih aman (misalnya pembulatan atau kata 'sekitar').
-Pertahankan struktur, urutan scene, dan semua field (termasuk "ekspresi" dan "broll") kecuali yang perlu diperbaiki.
+Pertahankan struktur, urutan scene, dan semua field (termasuk "gambar") kecuali yang perlu diperbaiki.
+Pastikan JSON valid: di dalam teks jangan memakai tanda kutip ganda (gunakan kutip tunggal), tanpa koma berlebih.
 Balas HANYA JSON valid dengan bentuk {{"scenes":[...]}}, ditambah field
 "catatan_fakta": daftar string singkat tentang hal yang perlu dicek manusia (kosongkan jika tidak ada).
 {SKEMA}"""
 
-SYS_KURATOR = """Kamu Agen Kurator Footage untuk video edukasi vertikal. Kamu melihat beberapa gambar cuplikan (thumbnail) video stok.
-Pilih SATU gambar yang paling cocok sebagai video latar untuk narasi scene.
+SYS_KURATOR = """Kamu Agen Kurator Footage untuk video edukasi vertikal. Kamu menerima beberapa scene. Tiap scene punya narasi dan beberapa gambar cuplikan (thumbnail) video stok berlabel "Scene X - Gambar Y".
+Untuk SETIAP scene, pilih satu gambar yang paling cocok sebagai video latar untuk narasinya.
 Pilih hanya jika isi gambar benar-benar sesuai dengan tema dan narasi (objek, hewan, tempat, atau suasana yang disebut jelas terlihat).
-Jawab 0 jika semua gambar generik, tidak nyambung, memuat teks/logo/watermark yang mencolok, atau menampilkan orang yang tidak relevan.
-Lebih baik menjawab 0 daripada memilih footage yang salah.
-Balas HANYA JSON: {"pilihan": <nomor gambar atau 0>, "alasan": "<satu kalimat>"}"""
+Beri nomor 0 jika semua gambar pada scene itu generik, tidak nyambung, memuat teks/logo/watermark yang mencolok, atau menampilkan orang yang tidak relevan.
+Lebih baik 0 daripada footage yang salah.
+Balas HANYA JSON: {"pilihan":[{"scene":<nomor scene>,"nomor":<nomor gambar atau 0>,"alasan":"<satu kalimat>"}]} dan sertakan semua scene."""
 
 
 def validasi(n: dict) -> dict:
@@ -121,8 +130,7 @@ def validasi(n: dict) -> dict:
                 raise SystemExit("Angka pada scene big_number tidak valid.")
             if s["angka"].is_integer():
                 s["angka"] = int(s["angka"])
-        if s.get("ekspresi") not in EKSPRESI:
-            s["ekspresi"] = "senang"
+        s["gambar"] = str(s.get("gambar") or "").strip()[:300]
         b = s.get("broll")
         if isinstance(b, str):
             b = [b]
@@ -132,7 +140,7 @@ def validasi(n: dict) -> dict:
             {
                 "type": "outro",
                 "durasi": 4,
-                "ekspresi": "senang",
+                "gambar": "",
                 "broll": [],
                 "narasi": "Ikuti untuk fakta seru lainnya!",
                 "teks": "Ikuti untuk fakta *seru* lainnya!",
@@ -173,8 +181,7 @@ async def sintesis(teks: str, path: Path) -> list:
 
 
 async def agen_suara(naskah: dict, slug: str) -> dict:
-    folder = ROOT / "public" / "audio" / slug
-    folder.mkdir(parents=True, exist_ok=True)
+    folder = siapkan_folder(ROOT / "public" / "audio" / slug)
     for i, s in enumerate(naskah["scenes"]):
         file = folder / f"scene_{i}.mp3"
         kata = await sintesis(s["narasi"], file)
@@ -186,6 +193,23 @@ async def agen_suara(naskah: dict, slug: str) -> dict:
     total = sum(s["durasi"] for s in naskah["scenes"])
     print(f"  total video: {round(total)} detik")
     return naskah
+
+
+def siapkan_folder(path: Path) -> Path:
+    """Buat folder. Kalau di jalurnya ada FILE bernama sama (mis. 'public' tidak sengaja berupa file),
+    file itu disingkirkan di sesi ini supaya folder bisa dibuat (repo asli tidak berubah)."""
+    jalur = []
+    p = path
+    while p != ROOT and p != p.parent:
+        jalur.append(p)
+        p = p.parent
+    for q in reversed(jalur):
+        if q.exists() and not q.is_dir():
+            print(f"  peringatan: '{q.relative_to(ROOT)}' di repo berupa FILE, bukan folder. "
+                  f"Diabaikan di sesi ini; sebaiknya hapus file itu dari repo.")
+            q.unlink()
+        q.mkdir(exist_ok=True)
+    return path
 
 
 # ---------------------------------------------------------------- B-roll
@@ -312,34 +336,33 @@ def _ambil_gambar(url: str) -> str:
     return base64.b64encode(data).decode()
 
 
-def kurator(topik: str, narasi: str, kands: list):
-    """Agen Kurator: Gemini melihat thumbnail kandidat dan memilih yang paling cocok (atau tidak ada)."""
-    gambar, valid = [], []
-    for k in kands:
-        if not k["thumb"]:
-            continue
+def kurator_batch(topik: str, tugas: list) -> dict:
+    """Agen Kurator: satu permintaan Gemini untuk SEMUA scene (hemat jatah gratis).
+    tugas = [{"i": nomor_scene, "narasi": str, "kands": [kandidat dengan "_gambar"]}]
+    Hasil: {nomor_scene: kandidat terpilih}. Scene tanpa pilihan yang cocok tidak dimasukkan."""
+    gambar = []
+    baris = [f"Tema video: {topik}", "Daftar scene:"]
+    for tg in tugas:
+        baris.append(f'- Scene {tg["i"]}: "{tg["narasi"]}" (gambar kandidat 1-{len(tg["kands"])})')
+        for n, k in enumerate(tg["kands"], 1):
+            gambar.append((f'Scene {tg["i"]} - Gambar {n}:', k["_gambar"]))
+    try:
+        hasil = tanya_json(SYS_KURATOR, "\n".join(baris), gambar, ronde=2)
+    except SystemExit as e:  # lebih baik tanpa footage daripada footage salah
+        print(f"  kurator gagal ({e}), semua scene memakai latar biasa")
+        return {}
+    daftar = hasil.get("pilihan", []) if isinstance(hasil, dict) else []
+    pilih: dict = {}
+    for item in daftar if isinstance(daftar, list) else []:
         try:
-            gambar.append(_ambil_gambar(k["thumb"]))
-            valid.append(k)
-        except Exception:
+            i, n = int(item.get("scene")), int(item.get("nomor", 0))
+        except (TypeError, ValueError, AttributeError):
             continue
-    if not valid:
-        return None
-    user = (
-        f"Tema video: {topik}\nNarasi scene: \"{narasi}\"\n"
-        f"Ada {len(valid)} gambar kandidat, bernomor 1-{len(valid)} sesuai urutan."
-    )
-    try:
-        hasil = tanya_json(SYS_KURATOR, user, gambar, ronde=1)  # gagal cepat bila server sibuk
-    except SystemExit as e:  # kurator gagal -> lebih baik tanpa footage daripada footage salah
-        print(f"    kurator gagal ({e}), scene tanpa video latar")
-        return None
-    try:
-        n = int(hasil.get("pilihan", 0))
-    except (TypeError, ValueError):
-        n = 0
-    print(f"    kurator: pilihan {n} - {hasil.get('alasan', '')}")
-    return valid[n - 1] if 1 <= n <= len(valid) else None
+        tg = next((x for x in tugas if x["i"] == i), None)
+        print(f"  kurator scene {i}: pilihan {n} - {item.get('alasan', '')}")
+        if tg and 1 <= n <= len(tg["kands"]):
+            pilih[i] = tg["kands"][n - 1]
+    return pilih
 
 
 def unduh(link: str, path: Path) -> None:
@@ -357,10 +380,10 @@ def agen_broll(naskah: dict, slug: str, topik: str) -> dict:
         print("  (PIXABAY_API_KEY / PEXELS_API_KEY kosong, b-roll dilewati)")
         return naskah
     print(f"  sumber video latar: {sumber}")
-    folder = ROOT / "public" / "broll" / slug
-    folder.mkdir(parents=True, exist_ok=True)
-    dipakai: set = set()
-    kredit = []
+    folder = siapkan_folder(ROOT / "public" / "broll" / slug)
+
+    # 1) kumpulkan kandidat tiap scene beserta cuplikan gambarnya
+    tugas = []
     for i, s in enumerate(naskah["scenes"]):
         queries = s.get("broll") or []
         if not queries:
@@ -368,28 +391,113 @@ def agen_broll(naskah: dict, slug: str, topik: str) -> dict:
         try:
             pool: list = []
             for q in queries:
-                for k in cari(q, dipakai):
+                for k in cari(q, set()):
                     if all(k["id"] != x["id"] for x in pool):
                         pool.append(k)
                 if len(pool) >= 12:
                     break
-            if not pool:
+            valid = []
+            for k in peringkat(pool, queries, s["durasi"], batas=4):
+                if not k["thumb"]:
+                    continue
+                try:
+                    k["_gambar"] = _ambil_gambar(k["thumb"])
+                    valid.append(k)
+                except Exception:
+                    continue
+            if valid:
+                tugas.append({"i": i, "narasi": s["narasi"], "kands": valid})
+                print(f"  scene {i}: {len(valid)} kandidat untuk {queries}")
+            else:
                 print(f"  scene {i}: tidak ada video untuk {queries}, pakai latar biasa")
-                continue
-            print(f"  scene {i}: {len(pool)} kandidat untuk {queries}")
-            pilih = kurator(topik, s["narasi"], peringkat(pool, queries, s["durasi"]))
-            time.sleep(3)  # jaga batas permintaan per menit di jalur gratis
-            if not pilih:
-                print(f"  scene {i}: tidak ada footage yang cocok, pakai latar biasa")
-                continue
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"  scene {i}: pencarian gagal ({e}), lanjut tanpa video latar")
+
+    naskah["kredit_broll"] = []
+    if not tugas:
+        return naskah
+
+    # 2) satu panggilan Gemini memilih untuk semua scene sekaligus
+    pilihan = kurator_batch(topik, tugas)
+
+    # 3) unduh yang terpilih (satu video tidak dipakai dua kali)
+    dipakai: set = set()
+    for tg in tugas:
+        i = tg["i"]
+        pilih = pilihan.get(i)
+        if not pilih or pilih["id"] in dipakai:
+            print(f"  scene {i}: tidak ada footage yang cocok, pakai latar biasa")
+            continue
+        try:
             unduh(pilih["link"], folder / f"scene_{i}.mp4")
-            s["brollSrc"] = f"broll/{slug}/scene_{i}.mp4"
+            naskah["scenes"][i]["brollSrc"] = f"broll/{slug}/scene_{i}.mp4"
             dipakai.add(pilih["id"])
-            kredit.append(f"Video by {pilih['pembuat']} on {sumber} ({queries[0]})")
+            naskah["kredit_broll"].append(
+                f"Video by {pilih['pembuat']} on {sumber} ({naskah['scenes'][i]['broll'][0]})"
+            )
             print(f"  scene {i}: b-roll terpasang")
         except Exception as e:  # b-roll hanya pemanis, jangan sampai menggagalkan video
-            print(f"  scene {i}: b-roll gagal ({e}), lanjut tanpa video latar")
-    naskah["kredit_broll"] = kredit
+            print(f"  scene {i}: unduh gagal ({e}), lanjut tanpa video latar")
+    return naskah
+
+
+# ---------------------------------------------------------------- Ilustrator
+
+def _url_gambar(prompt: str, seed: int, kunci: str):
+    q = urllib.parse.quote(prompt, safe="")
+    param = f"width=864&height=1536&seed={seed}&model=flux&nologo=true&safe=true"
+    if kunci:
+        return f"https://gen.pollinations.ai/image/{q}?{param}", {"Authorization": f"Bearer {kunci}", **UA}
+    return f"https://image.pollinations.ai/prompt/{q}?{param}", UA
+
+
+def buat_gambar(prompt: str, path: Path, seed: int) -> bool:
+    """Buat satu ilustrasi lewat Pollinations. Mencoba beberapa kali; True bila berhasil."""
+    target = []
+    if POLLI_KEY:
+        target.append(_url_gambar(prompt, seed, POLLI_KEY))
+    target.append(_url_gambar(prompt, seed, ""))
+    for url, hdr in target:
+        for percobaan in range(1, 4):
+            try:
+                req = urllib.request.Request(url, headers=hdr)
+                with urllib.request.urlopen(req, timeout=150) as r:
+                    tipe = r.headers.get("Content-Type", "")
+                    data = r.read()
+                if tipe.startswith("image/") and len(data) > 5000:
+                    path.write_bytes(data)
+                    return True
+                print(f"    bukan gambar ({tipe}, {len(data)} byte)")
+            except urllib.error.HTTPError as e:
+                print(f"    HTTP {e.code} (percobaan {percobaan})")
+                if e.code in (401, 403):
+                    break  # kunci/endpoint ditolak: coba endpoint berikutnya
+            except Exception as e:
+                print(f"    gagal ({e}) percobaan {percobaan}")
+            time.sleep(20 * percobaan)
+    return False
+
+
+def agen_ilustrator(naskah: dict, slug: str) -> dict:
+    """Agen Ilustrator: membuat gambar kartun bergaya buku cerita untuk tiap scene."""
+    folder = siapkan_folder(ROOT / "public" / "gambar" / slug)
+    seed = int(hashlib.md5(slug.encode()).hexdigest()[:6], 16) % 100000  # seed sama = gaya lebih konsisten
+    jeda = 3 if POLLI_KEY else 16  # tanpa kunci, batasnya sekitar 1 gambar per 15 detik
+    dibuat = berhasil = 0
+    for i, s in enumerate(naskah["scenes"]):
+        if not s.get("gambar") or dibuat >= MAKS_GAMBAR:
+            continue
+        prompt = f"{STYLE}. {s['gambar']}"[:600]
+        print(f"  scene {i}: membuat ilustrasi...")
+        dibuat += 1
+        if buat_gambar(prompt, folder / f"scene_{i}.jpg", seed):
+            s["gambarSrc"] = f"gambar/{slug}/scene_{i}.jpg"
+            berhasil += 1
+        else:
+            print(f"  scene {i}: ilustrasi gagal, memakai latar polos")
+        time.sleep(jeda)
+    print(f"  ilustrasi berhasil: {berhasil} dari {dibuat}")
     return naskah
 
 
@@ -435,14 +543,16 @@ def main() -> None:
     catatan = naskah.get("catatan_fakta") or []
     print("[3/4] Agen Suara + Subtitle...")
     naskah = asyncio.run(agen_suara(naskah, slug))
-    print("[4/4] Agen Kurator Footage (b-roll)...")
-    naskah = agen_broll(naskah, slug, topik)
+    print("[4/4] Agen Ilustrator (gambar kartun)...")
+    naskah = agen_ilustrator(naskah, slug)
+    if os.environ.get("BROLL") == "ya":  # opsional: video stok sebagai tambahan (bawaan: mati)
+        print("[+] Agen Kurator Footage (b-roll)...")
+        naskah = agen_broll(naskah, slug, topik)
 
-    buat_sfx(ROOT / "public" / "sfx")  # efek suara dibuat lewat kode (file buatan sendiri didahulukan)
+    buat_sfx(siapkan_folder(ROOT / "public" / "sfx"))  # efek suara dibuat lewat kode (file buatan sendiri didahulukan)
     naskah["sfx"] = peta_sfx(ROOT / "public")
-    naskah["tema"] = pilih("TEMA", TEMA_VALID, "klasik")
-    naskah["karakter"] = pilih("KARAKTER", KARAKTER_VALID, "mimo")
-    print(f"Tampilan: tema {naskah['tema']}, karakter {naskah['karakter']}")
+    naskah["tema"] = pilih("TEMA", TEMA_VALID, "gelap")
+    print(f"Tampilan: tema {naskah['tema']}")
     if (ROOT / "public" / "musik.mp3").exists():
         naskah["musikSrc"] = "musik.mp3"
 

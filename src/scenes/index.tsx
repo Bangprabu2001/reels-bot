@@ -1,6 +1,7 @@
 import React from "react";
 import type { Scene } from "../types";
 import { HookScene } from "./HookScene";
+import { CeritaScene } from "./CeritaScene";
 import { BarChartScene } from "./BarChartScene";
 import { ListScene } from "./ListScene";
 import { BigNumberScene } from "./BigNumberScene";
@@ -16,6 +17,8 @@ export const renderScene = (scene: Scene): React.ReactElement => {
   switch (scene.type) {
     case "hook":
       return <HookScene scene={scene} />;
+    case "cerita":
+      return <CeritaScene scene={scene} />;
     case "bar_chart":
       return <BarChartScene scene={scene} />;
     case "list":

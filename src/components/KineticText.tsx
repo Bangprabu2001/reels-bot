@@ -24,6 +24,9 @@ export const KineticText: React.FC<{
         lineHeight: 1.15,
         textAlign: "center",
         color: theme.text,
+        textShadow: "0 6px 0 rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.75)",
+        WebkitTextStroke: "2px rgba(0,0,0,0.5)",
+        paintOrder: "stroke fill",
       }}
     >
       {text.split(" ").map((w, i) => {

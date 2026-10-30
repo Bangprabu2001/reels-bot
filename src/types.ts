@@ -1,20 +1,24 @@
 // Skema JSON yang dihasilkan agen. Tiap "type" dipetakan ke satu komponen scene.
 export type Kata = { teks: string; mulai: number; selesai: number }; // detik
-export type Ekspresi = "senang" | "kaget" | "mikir";
 
 type Dasar = {
   durasi: number; // detik; diisi ulang oleh agen suara sesuai panjang audio
   narasi: string;
   audioSrc?: string; // relatif ke public/, mis. "audio/topik/scene_0.mp3"
   kata?: Kata[]; // timestamp per kata untuk subtitle dan gerak mulut maskot
-  ekspresi?: Ekspresi; // ekspresi maskot Mimo
-  broll?: string[]; // kata kunci pencarian video stok (bahasa Inggris), diisi agen
-  brollSrc?: string; // file video latar di public/, diisi agen b-roll
+  gambar?: string; // prompt ilustrasi (bahasa Inggris), diisi agen naskah
+  gambarSrc?: string; // file ilustrasi di public/, diisi agen ilustrator
+  broll?: string[]; // (opsional, lama) kata kunci video stok
+  brollSrc?: string; // (opsional, lama) file video latar di public/
 };
 
 export type HookScene = Dasar & {
   type: "hook";
   teks: string; // kata penting diapit *bintang*
+};
+
+export type CeritaScene = Dasar & {
+  type: "cerita"; // hanya narasi di atas ilustrasi, subtitle di tengah layar
 };
 
 export type BarChartScene = Dasar & {
@@ -72,6 +76,7 @@ export type OutroScene = Dasar & {
 
 export type Scene =
   | HookScene
+  | CeritaScene
   | BarChartScene
   | ListScene
   | BigNumberScene
@@ -85,6 +90,5 @@ export type VideoProps = {
   scenes: Scene[];
   musikSrc?: string; // musik latar opsional di public/, volume dibuat kecil
   sfx?: Record<string, string>; // nama efek -> file di public/, mis. {"pop": "sfx/pop.wav"}
-  tema?: string; // klasik | neon | sunset | hutan | kontras
-  karakter?: string; // mimo | bolt | miko
+  tema?: string; // gelap | neon
 };

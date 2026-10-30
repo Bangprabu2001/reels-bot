@@ -8,26 +8,21 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { BawahLayar } from "./components/Captions";
+import { SubtitleTengah } from "./components/Captions";
 import { SceneContext } from "./components/SceneContext";
 import { Sfx } from "./components/Sfx";
 import { renderScene } from "./scenes";
 import { terapkanTema, theme } from "./theme";
 import type { VideoProps } from "./types";
 
-// Fade-in singkat di awal tiap scene + zoom pelan pada isi scene (kesan kamera bergerak).
-const IsiScene: React.FC<{ frames: number; children: React.ReactNode }> = ({
-  frames,
-  children,
-}) => {
+// Scene yang menonjolkan ilustrasi (lapisan gelap tipis); scene data lebih gelap agar teks terbaca.
+const SCENE_GAMBAR = ["hook", "cerita", "fakta", "outro"];
+
+// Fade-in singkat di awal tiap scene.
+const IsiScene: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const frame = useCurrentFrame();
   const masuk = interpolate(frame, [0, 6], [0, 1], { extrapolateRight: "clamp" });
-  const zoom = interpolate(frame, [0, frames], [1, 1.05]);
-  return (
-    <AbsoluteFill style={{ opacity: masuk, transform: `scale(${zoom})` }}>
-      {children}
-    </AbsoluteFill>
-  );
+  return <AbsoluteFill style={{ opacity: masuk }}>{children}</AbsoluteFill>;
 };
 
 // Bilah kemajuan tipis di atas: trik umum untuk menjaga penonton sampai akhir.
@@ -49,7 +44,7 @@ const BilahKemajuan: React.FC = () => {
   );
 };
 
-export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc, sfx, tema, karakter }) => {
+export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc, sfx, tema }) => {
   const { fps } = useVideoConfig();
   terapkanTema(tema); // harus dipanggil sebelum komponen lain membaca warna
 
@@ -60,13 +55,18 @@ export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc, sfx, tema, k
           const frames = Math.max(1, Math.round(scene.durasi * fps));
           return (
             <Series.Sequence key={i} durationInFrames={frames}>
-              <SceneContext.Provider value={{ brollSrc: scene.brollSrc, sfx, karakter }}>
-                <IsiScene frames={frames}>{renderScene(scene)}</IsiScene>
-                <BawahLayar
-                  kata={scene.kata}
-                  ekspresi={scene.ekspresi}
-                  caption={scene.type !== "hook" && scene.type !== "outro"}
-                />
+              <SceneContext.Provider
+                value={{
+                  gambarSrc: scene.gambarSrc,
+                  brollSrc: scene.brollSrc,
+                  indeks: i,
+                  redup: SCENE_GAMBAR.includes(scene.type) ? 0.1 : 0.55,
+                  sfx,
+                }}
+              >
+                <IsiScene>{renderScene(scene)}</IsiScene>
+                {/* scene data/grafik sudah menampilkan teks sendiri, jadi subtitle hanya untuk scene cerita */}
+                {scene.type === "cerita" ? <SubtitleTengah kata={scene.kata} /> : null}
                 <Sfx nama="whoosh" volume={0.22} />
               </SceneContext.Provider>
               {scene.audioSrc ? <Audio src={staticFile(scene.audioSrc)} /> : null}
@@ -75,7 +75,7 @@ export const MainVideo: React.FC<VideoProps> = ({ scenes, musikSrc, sfx, tema, k
         })}
       </Series>
       <BilahKemajuan />
-      {musikSrc ? <Audio src={staticFile(musikSrc)} volume={0.12} loop /> : null}
+      {musikSrc ? <Audio src={staticFile(musikSrc)} volume={0.14} loop /> : null}
     </AbsoluteFill>
   );
 };

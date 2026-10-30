@@ -37,8 +37,9 @@ def _panggil(model: str, system: str, user: str, thinking: bool, gambar=None) ->
         config["thinkingConfig"] = {"thinkingLevel": "low"}
 
     parts = [{"text": user}]
-    for i, b64 in enumerate(gambar or [], 1):
-        parts.append({"text": f"Gambar {i}:"})
+    for i, g in enumerate(gambar or [], 1):
+        label, b64 = g if isinstance(g, tuple) else (f"Gambar {i}:", g)
+        parts.append({"text": label})
         parts.append({"inlineData": {"mimeType": "image/jpeg", "data": b64}})
 
     body = {
@@ -60,27 +61,55 @@ def _panggil(model: str, system: str, user: str, thinking: bool, gambar=None) ->
     return json.loads(text)
 
 
+_mati: dict = {}  # model -> waktu sampai kapan dilewati (jatah habis)
+
+
+def _jeda_dari(isi: str):
+    """Ambil anjuran waktu tunggu (detik) dari pesan error 429 Gemini, kalau ada."""
+    m = re.search(r'retryDelay"?\s*:\s*"?(\d+(?:\.\d+)?)s', isi) or re.search(
+        r"retry in (\d+(?:\.\d+)?)s", isi, re.I
+    )
+    return float(m.group(1)) if m else None
+
+
 def tanya_json(system: str, user: str, gambar=None, ronde: int = RONDE) -> dict:
-    """Tanya Gemini dan kembalikan JSON. Sabar kalau server sibuk (503/429): coba model lain,
-    lalu menunggu dan mengulang. Pakai ronde=1 untuk gagal cepat."""
+    """Tanya Gemini dan kembalikan JSON.
+    - Server sibuk (503): coba model lain, lalu menunggu dan mengulang.
+    - Jatah habis (429): kalau cuma jatah per menit, menunggu sesuai anjuran; kalau habis lama,
+      model itu dilewati untuk sementara (hemat percobaan).
+    Pakai ronde=1 untuk gagal cepat."""
     terakhir = "tidak diketahui"
     for putaran in range(1, ronde + 1):
         sibuk = False
         for model in dict.fromkeys(MODELS):
+            if _mati.get(model, 0) > time.time():
+                print(f"  (lewati {model}: jatah sedang habis)", flush=True)
+                sibuk = True
+                continue
             thinking = True
             for percobaan in range(1, TRIES + 1):
                 print(f"  (AI: {model}, percobaan {percobaan})", flush=True)
                 try:
                     return _panggil(model, system, user, thinking, gambar)
                 except urllib.error.HTTPError as e:
-                    terakhir = f"{model} HTTP {e.code}: {e.read().decode()[:300]}"
+                    isi = e.read().decode()
+                    terakhir = f"{model} HTTP {e.code}: {isi[:300]}"
                     print(f"  gagal: {terakhir}", flush=True)
                     if e.code == 400 and thinking:
                         thinking = False  # pengaturan berpikir ditolak, coba tanpa itu
                         continue
                     if e.code == 404:
                         break  # model tidak tersedia, pindah ke model berikutnya
-                    if e.code in (429, 500, 502, 503, 504):
+                    if e.code == 429:
+                        sibuk = True
+                        jeda = _jeda_dari(isi)
+                        if jeda is not None and jeda <= 70 and percobaan < TRIES:
+                            print(f"  jatah per menit habis, menunggu {jeda:.0f} detik...", flush=True)
+                            time.sleep(jeda + 1)
+                            continue
+                        _mati[model] = time.time() + min(jeda if jeda else 150, 1800)
+                        break  # model ini dilewati dulu, coba model berikutnya
+                    if e.code in (500, 502, 503, 504):
                         sibuk = True
                         if percobaan < TRIES:
                             time.sleep(8 * percobaan)
@@ -97,7 +126,7 @@ def tanya_json(system: str, user: str, gambar=None, ronde: int = RONDE) -> dict:
         if not sibuk or putaran == ronde:
             break
         jeda = JEDA_RONDE[min(putaran - 1, len(JEDA_RONDE) - 1)]
-        print(f"  server Gemini sedang sibuk. Menunggu {jeda} detik lalu mencoba lagi "
+        print(f"  Gemini sedang sibuk/jatah habis. Menunggu {jeda} detik lalu mencoba lagi "
               f"(ronde {putaran + 1} dari {ronde})...", flush=True)
         time.sleep(jeda)
     raise SystemExit(f"Semua percobaan gagal. Terakhir: {terakhir}")
