@@ -1,0 +1,7 @@
+node_modules
+out
+public/audio
+public/broll
+public/sfx/*.wav
+__pycache__
+.env
