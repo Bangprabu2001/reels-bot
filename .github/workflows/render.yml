@@ -20,6 +20,10 @@ on:
           - "120"
           - "150"
           - "180"
+      suara:
+        description: "Nama suara Gemini TTS (contoh: Achird, Kore, Aoede, Puck, atau nama dari menu suara AI Studio)"
+        required: false
+        default: "Achird"
 
 jobs:
   render:
@@ -36,13 +40,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Naskah, pemeriksaan fakta, suara, b-roll
+      - name: Naskah, fakta, suara, ilustrasi
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           TOPIK: ${{ github.event.inputs.topik }}
           DURASI: ${{ github.event.inputs.durasi }}
+          SUARA: ${{ github.event.inputs.suara }}
         run: |
           pip install -r scripts/requirements.txt
           python3 scripts/pipeline.py "$TOPIK"
@@ -69,3 +73,4 @@ jobs:
           path: |
             out/video.mp4
             data/latest.json
+            data/info-unggah.txt
