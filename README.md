@@ -17,6 +17,11 @@ Upload ke platform dilakukan manual.
 3. Actions -> "Buat dan render video" -> Run workflow (topik + durasi).
 4. Unduh artifact `video-siap-upload`, cek "Cek manual" di log, upload sendiri.
 
+## Suara
+- Narator memakai Gemini TTS (Google AI Studio) dengan kunci GEMINI_API_KEY yang sama. Nama suara diisi di kolom `suara` saat Run workflow.
+- Kalau Gemini TTS gagal atau jatahnya habis, otomatis memakai suara cadangan edge-tts.
+- Bahan unggah (judul, deskripsi, hashtag) ada di artifact `info-unggah.txt`.
+
 ## Catatan
 - Tanpa kunci Pollinations, gambar dibuat sekitar satu per 15 detik, jadi proses lebih lama (beberapa menit).
 - Kalau sebuah ilustrasi gagal dibuat, scene itu memakai latar polos bergerak; video tetap jadi.

@@ -29,18 +29,21 @@ from pathlib import Path
 import edge_tts
 
 from llm import tanya_json
+import tts
 from sfx import buat_sfx, peta_sfx
 
 ROOT = Path(__file__).resolve().parent.parent
 VOICE = os.environ.get("VOICE", "id-ID-ArdiNeural")  # alternatif: id-ID-GadisNeural
+SUARA = os.environ.get("SUARA") or "Achird"  # nama suara Gemini TTS
+MESIN_SUARA = os.environ.get("MESIN_SUARA") or "gemini"  # "gemini" atau "edge"
+JEDA_TTS = float(os.environ.get("JEDA_TTS") or 4)  # detik antar permintaan suara (jatah gratis terbatas)
 RATE = os.environ.get("KECEPATAN") or "+6%"  # sedikit lebih cepat terdengar lebih bertenaga
 TEMA_VALID = ["gelap", "neon"]
 POLLI_KEY = os.environ.get("POLLINATIONS_API_KEY", "").strip()  # opsional: batas lebih longgar, tanpa watermark
 MAKS_GAMBAR = int(os.environ.get("MAKS_GAMBAR") or 14)
 STYLE = (
-    "children's storybook cartoon illustration, flat vector style, thick clean outlines, "
-    "bold saturated colors, dark moody night background with glowing accents, simple shapes, "
-    "vertical composition, no text, no letters, no watermark"
+    "cartoon storybook illustration, flat colors, clean outlines, vibrant, "
+    "one clear recognizable main subject, simple background, vertical, no text, no letters, no watermark"
 )
 PIXABAY_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
@@ -68,7 +71,8 @@ def sys_naskah(durasi: int) -> str:
     kata = int(durasi * 2.4)
     n = max(6, round(durasi / 6))
     return f"""Kamu Agen Naskah untuk video pendek (Reels/Shorts) berbahasa Indonesia: hiburan + edukasi, ritme cepat, santai.
-Balas HANYA JSON valid berbentuk {{"scenes":[...]}}.
+Balas HANYA JSON valid berbentuk {{"unggah":{{"judul":"...","deskripsi":"...","hashtag":["#..."]}},"scenes":[...]}}.
+"unggah" = bahan untuk diunggah: judul menarik maksimal 70 karakter, deskripsi 1-2 kalimat, 5-8 hashtag.
 {SKEMA}
 Aturan:
 - Target total sekitar {durasi} detik: seluruh narasi sekitar {kata} kata, sekitar {n} scene PENDEK (4-8 detik tiap scene). Lebih baik banyak scene pendek daripada sedikit scene panjang.
@@ -76,7 +80,7 @@ Aturan:
 - Struktur: hook (scene pertama, kalimat pemancing yang kuat) -> konteks singkat -> 3-5 bagian isi yang membahas topik sampai tuntas (jelaskan sebab-akibat, bukan sekadar daftar) -> ringkasan -> outro (scene terakhir).
 - Komposisi: sekitar 60% scene bertipe "cerita" (narasi di atas ilustrasi, boleh 2-3 berturut-turut), selingi dengan "fakta", "mitos_fakta", "big_number", "bar_chart", "compare", "timeline", atau "list" hanya bila ada data atau poin yang cocok. Hook di awal, outro di akhir.
 - Hanya fakta yang kamu yakin akurat; angka boleh dibulatkan; jangan mengarang statistik atau sumber.
-- "gambar": untuk SETIAP scene, satu adegan ilustrasi kartun yang konkret dan mudah digambar; boleh berisi manusia, hewan, benda, tempat, atau fenomena (contoh: "a sleepy man in bed under a glowing moon", "a giant brain made of colorful gears"). Hindari teks, angka, grafik, dan logo di dalam gambar.
+- "gambar": untuk SETIAP scene, satu kalimat bahasa Inggris (10-20 kata) yang menggambarkan hal NYATA dan LITERAL yang disebut narasi, dengan satu subjek utama yang jelas dan mudah dikenali (contoh: "a man sleeping in a bed at night, moon in the window", "a cheetah running across the savanna"). Boleh ada manusia, hewan, benda, atau tempat. JANGAN metafora atau konsep abstrak (contoh yang dilarang: "brain made of gears", "glowing energy", "time flowing"). Hindari teks, angka, grafik, dan logo di dalam gambar.
 - Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat.
 - Pastikan JSON valid: di dalam teks JANGAN memakai tanda kutip ganda (gunakan kutip tunggal atau tanpa kutip), tanpa koma berlebih, tanpa komentar."""
 
@@ -85,7 +89,7 @@ SYS_FAKTA = f"""Kamu Agen Pemeriksa Fakta. Kamu menerima naskah video JSON.
 Periksa setiap klaim dan angka. Perbaiki yang salah atau meragukan, ganti dengan versi yang lebih aman (misalnya pembulatan atau kata 'sekitar').
 Pertahankan struktur, urutan scene, dan semua field (termasuk "gambar") kecuali yang perlu diperbaiki.
 Pastikan JSON valid: di dalam teks jangan memakai tanda kutip ganda (gunakan kutip tunggal), tanpa koma berlebih.
-Balas HANYA JSON valid dengan bentuk {{"scenes":[...]}}, ditambah field
+Balas HANYA JSON valid dengan bentuk {{"unggah":{{...}},"scenes":[...]}} (pertahankan field "unggah"), ditambah field
 "catatan_fakta": daftar string singkat tentang hal yang perlu dicek manusia (kosongkan jika tidak ada).
 {SKEMA}"""
 
@@ -146,6 +150,13 @@ def validasi(n: dict) -> dict:
                 "teks": "Ikuti untuk fakta *seru* lainnya!",
             }
         )
+    u = n.get("unggah") if isinstance(n.get("unggah"), dict) else {}
+    tag = u.get("hashtag") or []
+    n["unggah"] = {
+        "judul": str(u.get("judul") or "").strip()[:100],
+        "deskripsi": str(u.get("deskripsi") or "").strip(),
+        "hashtag": [str(x).strip() for x in tag if str(x).strip()][:10],
+    }
     return n
 
 
@@ -180,8 +191,27 @@ async def sintesis(teks: str, path: Path) -> list:
     return kata
 
 
+def _suara_gemini(naskah: dict, folder: Path, slug: str) -> None:
+    for i, s in enumerate(naskah["scenes"]):
+        durasi = tts.sintesis(s["narasi"], SUARA, folder / f"scene_{i}.wav")
+        s["audioSrc"] = f"audio/{slug}/scene_{i}.wav"
+        s["kata"] = tts.taksir_kata(s["narasi"], durasi)
+        s["durasi"] = round(durasi + 0.35, 2)  # sedikit jeda napas di akhir scene
+        print(f"  scene {i} ({s['type']}): {s['durasi']} detik")
+        time.sleep(JEDA_TTS)
+
+
 async def agen_suara(naskah: dict, slug: str) -> dict:
     folder = siapkan_folder(ROOT / "public" / "audio" / slug)
+    if MESIN_SUARA == "gemini":
+        try:
+            print(f"  suara: Gemini TTS ({SUARA})")
+            await asyncio.get_running_loop().run_in_executor(None, _suara_gemini, naskah, folder, slug)
+            print(f"  total video: {round(sum(s['durasi'] for s in naskah['scenes']))} detik")
+            return naskah
+        except Exception as e:
+            print(f"  Gemini TTS gagal ({e}). Memakai suara cadangan (edge-tts)...")
+    print("  suara: edge-tts")
     for i, s in enumerate(naskah["scenes"]):
         file = folder / f"scene_{i}.mp3"
         kata = await sintesis(s["narasi"], file)
@@ -190,8 +220,7 @@ async def agen_suara(naskah: dict, slug: str) -> dict:
         # durasi scene = akhir kata terakhir + jeda napas
         s["durasi"] = round((kata[-1]["selesai"] + 0.6) if kata else max(2.5, len(s["narasi"]) / 14), 2)
         print(f"  scene {i} ({s['type']}): {s['durasi']} detik")
-    total = sum(s["durasi"] for s in naskah["scenes"])
-    print(f"  total video: {round(total)} detik")
+    print(f"  total video: {round(sum(s['durasi'] for s in naskah['scenes']))} detik")
     return naskah
 
 
@@ -446,7 +475,7 @@ def agen_broll(naskah: dict, slug: str, topik: str) -> dict:
 
 def _url_gambar(prompt: str, seed: int, kunci: str):
     q = urllib.parse.quote(prompt, safe="")
-    param = f"width=864&height=1536&seed={seed}&model=flux&nologo=true&safe=true"
+    param = f"width=864&height=1536&seed={seed}&model=flux&nologo=true&safe=true&enhance=false"
     if kunci:
         return f"https://gen.pollinations.ai/image/{q}?{param}", {"Authorization": f"Bearer {kunci}", **UA}
     return f"https://image.pollinations.ai/prompt/{q}?{param}", UA
@@ -488,7 +517,7 @@ def agen_ilustrator(naskah: dict, slug: str) -> dict:
     for i, s in enumerate(naskah["scenes"]):
         if not s.get("gambar") or dibuat >= MAKS_GAMBAR:
             continue
-        prompt = f"{STYLE}. {s['gambar']}"[:600]
+        prompt = f"{s['gambar']}. {STYLE}"[:600]  # isi adegan dulu, gaya belakangan
         print(f"  scene {i}: membuat ilustrasi...")
         dibuat += 1
         if buat_gambar(prompt, folder / f"scene_{i}.jpg", seed):
@@ -560,6 +589,13 @@ def main() -> None:
     for nama in (f"{slug}.json", "latest.json"):
         (ROOT / "data" / nama).write_text(json.dumps(naskah, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    u = naskah.get("unggah") or {}
+    info = (
+        f"JUDUL: {u.get('judul', '')}\n\nDESKRIPSI: {u.get('deskripsi', '')}\n\n"
+        f"HASHTAG: {' '.join(u.get('hashtag', []))}\n"
+    )
+    (ROOT / "data" / "info-unggah.txt").write_text(info, encoding="utf-8")
+    print("\nBahan unggah (juga ada di data/info-unggah.txt):\n" + info)
     print(f"\nTersimpan: data/{slug}.json (dan data/latest.json)")
     if catatan:
         print("\nCek manual sebelum upload:")
