@@ -15,7 +15,7 @@ export const ListScene: React.FC<{ scene: Props }> = ({ scene }) => {
       {scene.poin.map((_, i) => (
         <Sfx key={i} nama="pop" dari={20 + i * 16} volume={0.25} />
       ))}
-      <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
+      <div style={{ width: "100%", fontFamily: theme.fontBody, color: theme.text }}>
         <div style={{ marginBottom: 70 }}>
           <KineticText text={scene.judul} size={78} stagger={3} />
         </div>
@@ -35,7 +35,8 @@ export const ListScene: React.FC<{ scene: Props }> = ({ scene }) => {
                 marginBottom: 36,
                 padding: "30px 36px",
                 borderRadius: 36,
-                background: "rgba(255,255,255,0.1)",
+                background: theme.kartu,
+                border: `3px solid ${theme.kartuTepi}`,
                 opacity: Math.min(1, s),
                 transform: `translateX(${(1 - s) * -220}px)`,
               }}

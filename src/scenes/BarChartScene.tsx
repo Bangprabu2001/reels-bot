@@ -16,7 +16,7 @@ export const BarChartScene: React.FC<{ scene: Props }> = ({ scene }) => {
       {scene.data.map((_, i) => (
         <Sfx key={i} nama="pop" dari={18 + i * 9} volume={0.2} />
       ))}
-      <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
+      <div style={{ width: "100%", fontFamily: theme.fontBody, color: theme.text }}>
         <div style={{ marginBottom: 70 }}>
           <KineticText text={scene.judul} size={70} stagger={3} />
         </div>
@@ -46,7 +46,7 @@ export const BarChartScene: React.FC<{ scene: Props }> = ({ scene }) => {
                 style={{
                   height: 46,
                   borderRadius: 23,
-                  background: "rgba(255,255,255,0.12)",
+                  background: theme.trek,
                   overflow: "hidden",
                 }}
               >
@@ -58,7 +58,7 @@ export const BarChartScene: React.FC<{ scene: Props }> = ({ scene }) => {
                     background:
                       i === 0
                         ? theme.accent
-                        : `linear-gradient(90deg, ${theme.accent2}, #7C9BFF)`,
+                        : `linear-gradient(90deg, ${theme.accent2}, ${theme.bar2})`,
                   }}
                 />
               </div>

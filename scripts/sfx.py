@@ -1,4 +1,4 @@
-"""Membuat efek suara (whoosh, pop, ding) sebagai file WAV tanpa library tambahan.
+"""Membuat efek suara (whoosh, pop, ding, tick, rustle, ketik) sebagai file WAV tanpa library tambahan.
 
 Kalau kamu menaruh file sendiri di public/sfx/ dengan nama whoosh.mp3 / pop.mp3 / ding.mp3
 (atau .wav/.ogg), file itu yang dipakai dan menggantikan suara buatan kode.
@@ -11,7 +11,7 @@ import wave
 from pathlib import Path
 
 LAJU = 22050
-NAMA = ("whoosh", "pop", "ding")
+NAMA = ("whoosh", "pop", "ding", "tick", "rustle", "ketik")
 
 
 def _normal(sampel, puncak=0.9):
@@ -81,11 +81,56 @@ def _ding():
     return keluar
 
 
+def _tick():
+    """Detak digital halus (gaya HUD)."""
+    n = int(0.06 * LAJU)
+    keluar = []
+    for i in range(n):
+        t = i / LAJU
+        keluar.append(
+            math.sin(2 * math.pi * 3200 * t) * math.exp(-t * 160) * 0.7
+            + math.sin(2 * math.pi * 1600 * t) * math.exp(-t * 90) * 0.4
+        )
+    return keluar
+
+
+def _rustle():
+    """Gemerisik kertas (gaya Kertas)."""
+    n = int(0.4 * LAJU)
+    acak = random.Random(5)
+    langkah = max(1, int(0.012 * LAJU))
+    lp = amp = 0.0
+    keluar = []
+    for i in range(n):
+        if i % langkah == 0:
+            amp = acak.random() ** 2
+        x = acak.uniform(-1, 1)
+        lp += 0.15 * (x - lp)
+        keluar.append((x - lp) * amp * (1 - i / n) ** 1.5)
+    return keluar
+
+
+def _ketik():
+    """Ketikan mesin tik (gaya Noir)."""
+    n = int(0.09 * LAJU)
+    acak = random.Random(9)
+    keluar = []
+    for i in range(n):
+        t = i / LAJU
+        klik = acak.uniform(-1, 1) * math.exp(-t * 220)
+        dug = math.sin(2 * math.pi * 180 * t) * math.exp(-t * 60) * 0.8
+        keluar.append(klik * 0.7 + dug)
+    return keluar
+
+
 def buat_sfx(folder: Path) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     _tulis(folder / "whoosh.wav", _whoosh())
     _tulis(folder / "pop.wav", _pop())
     _tulis(folder / "ding.wav", _ding())
+    _tulis(folder / "tick.wav", _tick())
+    _tulis(folder / "rustle.wav", _rustle())
+    _tulis(folder / "ketik.wav", _ketik())
 
 
 def peta_sfx(public: Path) -> dict:

@@ -24,7 +24,7 @@ export const MitosFaktaScene: React.FC<{ scene: Props }> = ({ scene }) => {
   const kartu = (warna: string): React.CSSProperties => ({
     padding: "32px 40px",
     borderRadius: 40,
-    background: "rgba(255,255,255,0.1)",
+    background: theme.kartu,
     border: `6px solid ${warna}`,
   });
 
@@ -33,7 +33,7 @@ export const MitosFaktaScene: React.FC<{ scene: Props }> = ({ scene }) => {
       <Sfx nama="pop" dari={6} volume={0.3} />
       <Sfx nama="pop" dari={44} volume={0.3} />
       <Sfx nama="ding" dari={62} volume={0.3} />
-      <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
+      <div style={{ width: "100%", fontFamily: theme.fontBody, color: theme.text }}>
         <div
           style={{
             ...kartu(theme.merah),

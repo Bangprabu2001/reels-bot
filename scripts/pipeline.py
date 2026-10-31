@@ -1,5 +1,5 @@
-"""Pipeline agen:
-Naskah -> Pemeriksa Fakta -> Suara+Subtitle -> Ilustrator (gambar kartun) -> data/latest.json
+"""Pipeline agen (4 gaya video, satu gaya per video):
+Naskah + pemilih gaya -> Pemeriksa Fakta -> Suara+Subtitle -> Ilustrator (gambar kartun) -> data/latest.json
 
 Pemakaian:
     pip install -r scripts/requirements.txt
@@ -33,29 +33,73 @@ import tts
 from sfx import buat_sfx, peta_sfx
 
 ROOT = Path(__file__).resolve().parent.parent
-VOICE = os.environ.get("VOICE", "id-ID-ArdiNeural")  # alternatif: id-ID-GadisNeural
-SUARA = os.environ.get("SUARA") or "Achird"  # nama suara Gemini TTS
+VOICE = os.environ.get("VOICE")  # suara edge-tts (cadangan); kosong = ikut gaya video
+SUARA = os.environ.get("SUARA") or "auto"  # "auto" = suara sesuai gaya; atau nama suara Gemini TTS
 MESIN_SUARA = os.environ.get("MESIN_SUARA") or "gemini"  # "gemini" atau "edge"
 JEDA_TTS = float(os.environ.get("JEDA_TTS") or 4)  # detik antar permintaan suara (jatah gratis terbatas)
 RATE = os.environ.get("KECEPATAN") or "+6%"  # sedikit lebih cepat terdengar lebih bertenaga
-TEMA_VALID = ["gelap", "neon"]
 POLLI_KEY = os.environ.get("POLLINATIONS_API_KEY", "").strip()  # opsional: batas lebih longgar, tanpa watermark
 MAKS_GAMBAR = int(os.environ.get("MAKS_GAMBAR") or 14)
-STYLE = (
-    "cartoon storybook illustration, flat colors, clean outlines, vibrant, "
-    "one clear recognizable main subject, simple background, vertical, no text, no letters, no watermark"
-)
+GAYA_VALID = ["STYLE_HUD_TECH", "STYLE_PAPER_DAKWAH", "STYLE_RETRO_NOIR", "STYLE_CLAY_3D"]
+GAYA_ENV = (os.environ.get("GAYA") or "auto").strip()
+LATAR_CLAY = ["#E9E6FF", "#D6F0E0", "#FFF4D6"]
+
+# Satu video = SATU gaya (tidak dicampur). Tiap gaya punya template gambar (diadaptasi dari rancangan:
+# bendera Midjourney --style/--no diganti kalimat "Avoid"; label teks dibuat lewat kode, bukan oleh AI gambar),
+# suara narator, dan berkas musik latar.
+GAYA_INFO = {
+    "STYLE_HUD_TECH": {
+        "template": (
+            "Minimalist neon white line art on pure black background, HUD sci-fi interface, {desc}, "
+            "thin glowing monoline icon drawn with 2px white lines, subtle cyan outer glow, dark mode infographic, "
+            "cyberpunk medical UI, 9:16 vertical. Avoid: photorealistic, solid fills, 3d render, cartoon, "
+            "paper texture, messy background, colorful, text, letters, labels"
+        ),
+        "suara": "Charon", "edge": "id-ID-ArdiNeural", "musik": "musik_hud.mp3",
+        "baca": "Read the following in Indonesian as a deep, calm, mysterious male science-documentary narrator. Measured pace, clear pronunciation, subtle intensity:\n\n",
+    },
+    "STYLE_PAPER_DAKWAH": {
+        "template": (
+            "Paper-cut scrapbook illustration, warm cream paper texture background, cute black stickman character "
+            "with round head and no face, soft pastel watercolor paper cutout elements of {desc}, washi tape decoration, "
+            "drop shadow, hand-drawn doodle style, Islamic aesthetic, cozy and calm, stop motion paper feel, 9:16 vertical. "
+            "Avoid: neon, glowing lines, HUD, sci-fi, dark mode, 3d clay, photorealistic, scary, text, letters"
+        ),
+        "suara": "Sulafat", "edge": "id-ID-GadisNeural", "musik": "musik_paper.mp3",
+        "baca": "Read the following in Indonesian with a gentle, warm, comforting tone, like a kind storyteller sharing advice. Slow-medium pace, soft and sincere:\n\n",
+    },
+    "STYLE_RETRO_NOIR": {
+        "template": (
+            "Grainy retro noir halftone comic illustration, old newspaper texture, high contrast black and white "
+            "photocopy style illustration of {desc}, single red accent color, dramatic ink bleed, halftone dots, "
+            "investigative documentary style, vintage historical aesthetic, 9:16 vertical. "
+            "Avoid: colorful pastel, cute chibi, neon glow, clean modern, clay 3d, scrapbook cute, text, letters"
+        ),
+        "suara": "Algenib", "edge": "id-ID-ArdiNeural", "musik": "musik_noir.mp3",
+        "baca": "Read the following in Indonesian in a low, dramatic, tense voice like an investigative history documentary. Slow pace with serious emphasis:\n\n",
+    },
+    "STYLE_CLAY_3D": {
+        "template": (
+            "Soft clay 3d isometric diorama, cute chibi jelly clay render of {desc}, pastel clean background, "
+            "soft studio lighting, matte plasticine material, minimal premium, kawaii 3d, 9:16 vertical. "
+            "Avoid: line art, paper texture, halftone, grainy, dark mode, HUD, photorealistic human, scary, text, letters"
+        ),
+        "suara": "Puck", "edge": "id-ID-GadisNeural", "musik": "musik_clay.mp3",
+        "baca": "Read the following in Indonesian in a cheerful, playful, friendly voice, like explaining something fun to a friend. Lively pace, clear pronunciation:\n\n",
+    },
+}
 PIXABAY_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 UA = {"User-Agent": "reels-bot"}
 ALLOWED = {
-    "hook", "cerita", "bar_chart", "list", "big_number", "compare",
+    "hook", "pertanyaan", "cerita", "bar_chart", "list", "big_number", "compare",
     "timeline", "fakta", "mitos_fakta", "outro",
 }
 
 SKEMA = """Jenis scene yang boleh dipakai (semuanya wajib punya "gambar"):
 - {"type":"hook","durasi":3,"narasi":"...","teks":"kalimat pendek; kata penting diapit *bintang*"}
-- {"type":"cerita","durasi":6,"narasi":"..."}   (hanya narasi di atas ilustrasi; subtitle tampil di tengah layar)
+- {"type":"pertanyaan","durasi":4,"narasi":"...","teks":"pertanyaan pemancing rasa ingin tahu; kata penting diapit *bintang*"}
+- {"type":"cerita","durasi":6,"narasi":"...","kunci":"istilah kunci 1-4 kata","stiker":"satu emoji"}   (narasi di atas ilustrasi; subtitle tampil di tengah layar)
 - {"type":"fakta","durasi":4,"narasi":"...","teks":"pernyataan singkat; kata penting diapit *bintang*","ikon":"satu emoji"}
 - {"type":"mitos_fakta","durasi":7,"narasi":"...","mitos":"anggapan keliru (singkat)","fakta":"yang benar (singkat)"}
 - {"type":"big_number","durasi":6,"narasi":"...","judul":"...","angka":0,"satuan":"...","keterangan":"..."}
@@ -64,14 +108,29 @@ SKEMA = """Jenis scene yang boleh dipakai (semuanya wajib punya "gambar"):
 - {"type":"timeline","durasi":8,"narasi":"...","judul":"...","langkah":[{"label":"...","teks":"..."}]}
 - {"type":"list","durasi":7,"narasi":"...","judul":"...","poin":[{"ikon":"satu emoji","teks":"..."}]}
 - {"type":"outro","durasi":4,"narasi":"...","teks":"ajakan singkat; kata penting diapit *bintang*"}
-Field umum: "gambar" = satu kalimat bahasa Inggris yang menggambarkan SATU adegan ilustrasi kartun untuk scene itu (subjek, aksi, latar, suasana; tanpa teks atau huruf)."""
+Field umum: "gambar" = deskripsi SINGKAT bahasa Inggris tentang apa yang digambar untuk scene itu; "label" = tag data dekoratif (hanya untuk STYLE_HUD_TECH, selain itu isi "")."""
 
 
-def sys_naskah(durasi: int) -> str:
+PANDUAN_GAYA = """Pilih SATU gaya visual untuk seluruh video berdasarkan topik. DILARANG mencampur gaya.
+- "STYLE_HUD_TECH" (futuristik, ilmiah, misterius, gelap): topik Sains, Otak, Tidur, Psikologi, Teknologi, Fakta Medis, Self-Improvement, Neuroscience, Data.
+- "STYLE_PAPER_DAKWAH" (hangat, adem, humanis, islami): topik Dakwah, Parenting Ala Quran, Adab, Akhlak, Kisah Keluarga, Nasehat, Edukasi Anak Islami.
+- "STYLE_RETRO_NOIR" (historis, investigatif, serius, misteri): topik Sejarah Islam, Sirah Nabawiyah, Konspirasi, True Story, Kisah Perang, Misteri Sejarah.
+- "STYLE_CLAY_3D" (modern, premium, ceria, lucu): topik Keuangan, Bisnis, Produktivitas, Habit, Edukasi Modern, Teknologi Finansial.
+Jika topik tidak tercantum, pilih gaya yang paling dekat dengan isi dan nadanya."""
+
+
+def sys_naskah(durasi: int, paksa: str = "") -> str:
     kata = int(durasi * 2.4)
     n = max(6, round(durasi / 6))
-    return f"""Kamu Agen Naskah untuk video pendek (Reels/Shorts) berbahasa Indonesia: hiburan + edukasi, ritme cepat, santai.
-Balas HANYA JSON valid berbentuk {{"unggah":{{"judul":"...","deskripsi":"...","hashtag":["#..."]}},"scenes":[...]}}.
+    bagian_gaya = (
+        f'Gaya video sudah ditentukan: "{paksa}". Isi field "gaya" dengan nilai itu dan tulis naskah sesuai nadanya.'
+        if paksa
+        else PANDUAN_GAYA
+    )
+    return f"""Kamu Agen Naskah untuk video pendek (Reels/Shorts) berbahasa Indonesia, ritme cepat.
+Balas HANYA JSON valid berbentuk {{"gaya":"STYLE_...","unggah":{{"judul":"...","deskripsi":"...","hashtag":["#..."]}},"scenes":[...]}}.
+{bagian_gaya}
+Nada naskah mengikuti gaya: HUD = tenang, ilmiah, sedikit misterius; PAPER = hangat, lembut, menyejukkan, menasehati tanpa menggurui; NOIR = dramatis, serius, investigatif, penuh ketegangan; CLAY = ceria, ringan, ramah, modern.
 "unggah" = bahan untuk diunggah: judul menarik maksimal 70 karakter, deskripsi 1-2 kalimat, 5-8 hashtag.
 {SKEMA}
 Aturan:
@@ -79,17 +138,19 @@ Aturan:
 - Narasi maksimal 22 kata per scene. Kalimat pendek, lisan, natural. Jangan menyebut kata "scene".
 - Struktur: hook (scene pertama, kalimat pemancing yang kuat) -> konteks singkat -> 3-5 bagian isi yang membahas topik sampai tuntas (jelaskan sebab-akibat, bukan sekadar daftar) -> ringkasan -> outro (scene terakhir).
 - Komposisi: sekitar 60% scene bertipe "cerita" (narasi di atas ilustrasi, boleh 2-3 berturut-turut), selingi dengan "fakta", "mitos_fakta", "big_number", "bar_chart", "compare", "timeline", atau "list" hanya bila ada data atau poin yang cocok. Hook di awal, outro di akhir.
+- Untuk scene "cerita": isi "kunci" (istilah kunci 1-4 kata, bahasa Indonesia, tampil sebagai label tebal) pada sekitar 60% scene cerita, dan "stiker" (satu emoji yang relevan) pada sekitar 40%. Pakai "pertanyaan" untuk hook atau jeda yang memancing rasa ingin tahu (maksimal 2 per video).
 - Hanya fakta yang kamu yakin akurat; angka boleh dibulatkan; jangan mengarang statistik atau sumber.
-- "gambar": untuk SETIAP scene, satu kalimat bahasa Inggris (10-20 kata) yang menggambarkan hal NYATA dan LITERAL yang disebut narasi, dengan satu subjek utama yang jelas dan mudah dikenali (contoh: "a man sleeping in a bed at night, moon in the window", "a cheetah running across the savanna"). Boleh ada manusia, hewan, benda, atau tempat. JANGAN metafora atau konsep abstrak (contoh yang dilarang: "brain made of gears", "glowing energy", "time flowing"). Hindari teks, angka, grafik, dan logo di dalam gambar.
+- "gambar": untuk SETIAP scene, deskripsi SINGKAT (4-12 kata, bahasa Inggris) tentang hal NYATA dan LITERAL yang disebut narasi, dengan satu subjek utama yang jelas (contoh: "a sleeping man in a bed, moon in the window", "a cheetah running"). JANGAN menyebut gaya visual (gaya ditambahkan otomatis), JANGAN metafora atau konsep abstrak, dan hindari teks, angka, grafik, logo. Sesuaikan dengan gaya: HUD = objek yang bisa digambar sebagai ikon garis tipis (otak, bulan, jam, jantung, tempat tidur); CLAY = benda atau adegan lucu yang mudah dibentuk dari tanah liat (koin, celengan, jam, buku); PAPER dan NOIR = siluet, bangunan (masjid), benda, alam. Untuk topik islami (PAPER dan NOIR), DILARANG menggambarkan Nabi, Rasul, sahabat, malaikat, atau sosok suci; pakai siluet tanpa wajah, bangunan, benda, atau alam.
+- "label" (hanya untuk STYLE_HUD_TECH): tag dekoratif huruf besar gaya kode, 1-3 kata dipisah garis bawah (contoh: SLEEP_CYCLE, CORTISOL_DIP). JANGAN mengarang angka atau persentase statistik; angka hanya boleh bila memang fakta yang disebut di narasi. Untuk gaya lain isi "".
 - Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat.
 - Pastikan JSON valid: di dalam teks JANGAN memakai tanda kutip ganda (gunakan kutip tunggal atau tanpa kutip), tanpa koma berlebih, tanpa komentar."""
 
 
 SYS_FAKTA = f"""Kamu Agen Pemeriksa Fakta. Kamu menerima naskah video JSON.
 Periksa setiap klaim dan angka. Perbaiki yang salah atau meragukan, ganti dengan versi yang lebih aman (misalnya pembulatan atau kata 'sekitar').
-Pertahankan struktur, urutan scene, dan semua field (termasuk "gambar") kecuali yang perlu diperbaiki.
+Pertahankan struktur, urutan scene, field "gaya", dan semua field (termasuk "gambar" dan "label") kecuali yang perlu diperbaiki.
 Pastikan JSON valid: di dalam teks jangan memakai tanda kutip ganda (gunakan kutip tunggal), tanpa koma berlebih.
-Balas HANYA JSON valid dengan bentuk {{"unggah":{{...}},"scenes":[...]}} (pertahankan field "unggah"), ditambah field
+Balas HANYA JSON valid dengan bentuk {{"gaya":"...","unggah":{{...}},"scenes":[...]}} (pertahankan field "gaya" dan "unggah"), ditambah field
 "catatan_fakta": daftar string singkat tentang hal yang perlu dicek manusia (kosongkan jika tidak ada).
 {SKEMA}"""
 
@@ -122,6 +183,8 @@ def validasi(n: dict) -> dict:
                 s[sisi]["poin"] = s[sisi]["poin"][:3]
         elif t == "timeline":
             s["langkah"] = s["langkah"][:4]
+        elif t == "pertanyaan":
+            s["teks"] = str(s.get("teks") or s["narasi"]).strip()
         elif t == "fakta":
             s["ikon"] = str(s.get("ikon") or "💡")
         elif t == "mitos_fakta":
@@ -135,6 +198,9 @@ def validasi(n: dict) -> dict:
             if s["angka"].is_integer():
                 s["angka"] = int(s["angka"])
         s["gambar"] = str(s.get("gambar") or "").strip()[:300]
+        s["label"] = re.sub(r"[^A-Za-z0-9_%:. -]", "", str(s.get("label") or "")).strip().upper()[:36]
+        s["kunci"] = str(s.get("kunci") or "").strip()[:40]
+        s["stiker"] = str(s.get("stiker") or "").strip()[:8]
         b = s.get("broll")
         if isinstance(b, str):
             b = [b]
@@ -150,6 +216,11 @@ def validasi(n: dict) -> dict:
                 "teks": "Ikuti untuk fakta *seru* lainnya!",
             }
         )
+    g = str(n.get("gaya") or "").strip()
+    n["gaya"] = g if g in GAYA_VALID else "STYLE_HUD_TECH"
+    if n["gaya"] != "STYLE_HUD_TECH":
+        for s in scenes:
+            s["label"] = ""  # label data hanya dipakai gaya HUD
     u = n.get("unggah") if isinstance(n.get("unggah"), dict) else {}
     tag = u.get("hashtag") or []
     n["unggah"] = {
@@ -160,8 +231,8 @@ def validasi(n: dict) -> dict:
     return n
 
 
-def agen_naskah(topik: str, durasi: int) -> dict:
-    return validasi(tanya_json(sys_naskah(durasi), f"Topik: {topik}"))
+def agen_naskah(topik: str, durasi: int, paksa: str = "") -> dict:
+    return validasi(tanya_json(sys_naskah(durasi, paksa), f"Topik: {topik}"))
 
 
 def agen_fakta(naskah: dict, topik: str) -> dict:
@@ -169,11 +240,11 @@ def agen_fakta(naskah: dict, topik: str) -> dict:
     return validasi(hasil)
 
 
-async def sintesis(teks: str, path: Path) -> list:
+async def sintesis(teks: str, path: Path, voice: str) -> list:
     try:
-        comm = edge_tts.Communicate(teks, VOICE, rate=RATE, boundary="WordBoundary")
+        comm = edge_tts.Communicate(teks, voice, rate=RATE, boundary="WordBoundary")
     except TypeError:  # edge-tts versi lama: default-nya sudah WordBoundary
-        comm = edge_tts.Communicate(teks, VOICE, rate=RATE)
+        comm = edge_tts.Communicate(teks, voice, rate=RATE)
     kata = []
     with open(path, "wb") as f:
         async for c in comm.stream():
@@ -192,8 +263,11 @@ async def sintesis(teks: str, path: Path) -> list:
 
 
 def _suara_gemini(naskah: dict, folder: Path, slug: str) -> None:
+    info = GAYA_INFO[naskah["gaya"]]
+    voice = info["suara"] if SUARA.lower() == "auto" else SUARA
+    print(f"  suara: Gemini TTS ({voice}), gaya baca sesuai {naskah['gaya']}")
     for i, s in enumerate(naskah["scenes"]):
-        durasi = tts.sintesis(s["narasi"], SUARA, folder / f"scene_{i}.wav")
+        durasi = tts.sintesis(s["narasi"], voice, folder / f"scene_{i}.wav", info["baca"])
         s["audioSrc"] = f"audio/{slug}/scene_{i}.wav"
         s["kata"] = tts.taksir_kata(s["narasi"], durasi)
         s["durasi"] = round(durasi + 0.35, 2)  # sedikit jeda napas di akhir scene
@@ -205,16 +279,16 @@ async def agen_suara(naskah: dict, slug: str) -> dict:
     folder = siapkan_folder(ROOT / "public" / "audio" / slug)
     if MESIN_SUARA == "gemini":
         try:
-            print(f"  suara: Gemini TTS ({SUARA})")
             await asyncio.get_running_loop().run_in_executor(None, _suara_gemini, naskah, folder, slug)
             print(f"  total video: {round(sum(s['durasi'] for s in naskah['scenes']))} detik")
             return naskah
         except Exception as e:
             print(f"  Gemini TTS gagal ({e}). Memakai suara cadangan (edge-tts)...")
-    print("  suara: edge-tts")
+    voice_edge = VOICE or GAYA_INFO[naskah["gaya"]]["edge"]
+    print(f"  suara: edge-tts ({voice_edge})")
     for i, s in enumerate(naskah["scenes"]):
         file = folder / f"scene_{i}.mp3"
-        kata = await sintesis(s["narasi"], file)
+        kata = await sintesis(s["narasi"], file, voice_edge)
         s["audioSrc"] = f"audio/{slug}/scene_{i}.mp3"
         s["kata"] = kata
         # durasi scene = akhir kata terakhir + jeda napas
@@ -517,7 +591,7 @@ def agen_ilustrator(naskah: dict, slug: str) -> dict:
     for i, s in enumerate(naskah["scenes"]):
         if not s.get("gambar") or dibuat >= MAKS_GAMBAR:
             continue
-        prompt = f"{s['gambar']}. {STYLE}"[:600]  # isi adegan dulu, gaya belakangan
+        prompt = GAYA_INFO[naskah["gaya"]]["template"].format(desc=s["gambar"])[:700]
         print(f"  scene {i}: membuat ilustrasi...")
         dibuat += 1
         if buat_gambar(prompt, folder / f"scene_{i}.jpg", seed):
@@ -526,7 +600,7 @@ def agen_ilustrator(naskah: dict, slug: str) -> dict:
         else:
             print(f"  scene {i}: ilustrasi gagal, memakai latar polos")
         time.sleep(jeda)
-    print(f"  ilustrasi berhasil: {berhasil} dari {dibuat}")
+    print(f"  ilustrasi berhasil: {berhasil} dari {dibuat} (gaya {naskah['gaya']})")
     return naskah
 
 
@@ -565,10 +639,14 @@ def main() -> None:
     slug = re.sub(r"[^a-z0-9]+", "-", topik.lower()).strip("-")[:40] or "video"
     print(f"Topik: {topik} | target durasi: {durasi} detik")
 
-    print("[1/4] Agen Naskah...")
-    naskah = agen_naskah(topik, durasi)
+    paksa = GAYA_ENV if GAYA_ENV in GAYA_VALID else ""
+    print("[1/4] Agen Naskah + pemilih gaya...")
+    naskah = agen_naskah(topik, durasi, paksa)
+    print(f"  gaya terpilih: {naskah['gaya']}" + (" (ditentukan manual)" if paksa else " (dipilih otomatis dari topik)"))
     print("[2/4] Agen Pemeriksa Fakta...")
     naskah = agen_fakta(naskah, topik)
+    if paksa:
+        naskah["gaya"] = paksa
     catatan = naskah.get("catatan_fakta") or []
     print("[3/4] Agen Suara + Subtitle...")
     naskah = asyncio.run(agen_suara(naskah, slug))
@@ -580,10 +658,17 @@ def main() -> None:
 
     buat_sfx(siapkan_folder(ROOT / "public" / "sfx"))  # efek suara dibuat lewat kode (file buatan sendiri didahulukan)
     naskah["sfx"] = peta_sfx(ROOT / "public")
-    naskah["tema"] = pilih("TEMA", TEMA_VALID, "gelap")
-    print(f"Tampilan: tema {naskah['tema']}")
-    if (ROOT / "public" / "musik.mp3").exists():
-        naskah["musikSrc"] = "musik.mp3"
+    info = GAYA_INFO[naskah["gaya"]]
+    if naskah["gaya"] == "STYLE_CLAY_3D":
+        naskah["latar"] = LATAR_CLAY[int(hashlib.md5(slug.encode()).hexdigest()[:2], 16) % len(LATAR_CLAY)]
+    print(f"Tampilan: {naskah['gaya']}")
+    for berkas in (info["musik"], "musik.mp3"):  # musik khusus gaya didahulukan
+        if (ROOT / "public" / berkas).exists():
+            naskah["musikSrc"] = berkas
+            print(f"Musik latar: {berkas}")
+            break
+    else:
+        print(f"(Tidak ada musik. Taruh {info['musik']} atau musik.mp3 di folder public/ bila ingin musik latar.)")
 
     (ROOT / "data").mkdir(exist_ok=True)
     for nama in (f"{slug}.json", "latest.json"):

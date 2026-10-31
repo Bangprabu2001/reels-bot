@@ -39,7 +39,7 @@ export const BigNumberScene: React.FC<{ scene: Props }> = ({ scene }) => {
         style={{
           width: "100%",
           textAlign: "center",
-          fontFamily: theme.font,
+          fontFamily: theme.fontBody,
           color: theme.text,
         }}
       >

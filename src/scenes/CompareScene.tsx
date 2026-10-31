@@ -24,7 +24,7 @@ const Kartu: React.FC<{
       style={{
         padding: "30px 40px",
         borderRadius: 40,
-        background: "rgba(255,255,255,0.1)",
+        background: theme.kartu,
         border: `6px solid ${warna}`,
         transform: `translateX(${(1 - s) * dari}px)`,
         opacity: Math.min(1, s),
@@ -56,7 +56,7 @@ export const CompareScene: React.FC<{ scene: Props }> = ({ scene }) => {
       <Sfx nama="pop" dari={16} volume={0.25} />
       <Sfx nama="pop" dari={26} volume={0.25} />
       <Sfx nama="pop" dari={34} volume={0.3} />
-      <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
+      <div style={{ width: "100%", fontFamily: theme.fontBody, color: theme.text }}>
         <div style={{ marginBottom: 50 }}>
           <KineticText text={scene.judul} size={66} stagger={3} />
         </div>
@@ -67,7 +67,7 @@ export const CompareScene: React.FC<{ scene: Props }> = ({ scene }) => {
             height: 104,
             borderRadius: "50%",
             background: theme.accent,
-            color: theme.bg1,
+            color: theme.teksDiAksen,
             fontSize: 54,
             fontWeight: 700,
             display: "flex",

@@ -5,7 +5,7 @@ import type { Kata } from "../types";
 
 const PER_BARIS = 3; // sedikit kata sekaligus supaya gambar tetap terlihat
 
-// Subtitle di tengah layar tanpa panel: huruf besar bertepi hitam tebal, kata yang diucapkan menyala.
+// Subtitle di tengah layar tanpa panel. Font, warna, dan tepi huruf mengikuti gaya video.
 export const SubtitleTengah: React.FC<{ kata?: Kata[] }> = ({ kata }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -22,22 +22,22 @@ export const SubtitleTengah: React.FC<{ kata?: Kata[] }> = ({ kata }) => {
   });
 
   return (
-    <AbsoluteFill
-      style={{ justifyContent: "center", alignItems: "center", padding: "0 60px" }}
-    >
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 60px" }}>
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "center",
           gap: "0 22px",
-          fontFamily: theme.font,
+          fontFamily: theme.fontSub,
           fontWeight: 700,
-          fontSize: 84,
+          fontSize: theme.subUkuran,
           lineHeight: 1.15,
           textAlign: "center",
-          textShadow: "0 7px 0 rgba(0,0,0,0.65), 0 0 34px rgba(0,0,0,0.9)",
-          WebkitTextStroke: "8px #000000",
+          textTransform: theme.caps ? "uppercase" : "none",
+          letterSpacing: theme.tracking,
+          textShadow: theme.teksBayang,
+          WebkitTextStroke: `${theme.subTepiLebar}px ${theme.subTepi}`,
           paintOrder: "stroke fill",
         }}
       >
@@ -48,7 +48,7 @@ export const SubtitleTengah: React.FC<{ kata?: Kata[] }> = ({ kata }) => {
               key={i}
               style={{
                 display: "inline-block",
-                color: aktif ? theme.accent : theme.text,
+                color: aktif ? theme.subAktif : theme.subTeks,
                 transform: `scale(${aktif ? 1.08 : 1})`,
               }}
             >

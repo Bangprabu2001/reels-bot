@@ -4,19 +4,31 @@
       "type": "hook",
       "durasi": 3.5,
       "narasi": "Hewan tercepat di darat bukan singa!",
-      "teks": "Hewan *tercepat* di darat bukan *singa*!"
+      "teks": "Hewan *tercepat* di darat bukan *singa*!",
+      "label": "PREDATOR_SCAN"
+    },
+    {
+      "type": "pertanyaan",
+      "durasi": 4,
+      "narasi": "Siapa sebenarnya hewan tercepat?",
+      "teks": "Siapa hewan *tercepat*?",
+      "label": "TARGET_LOCK"
     },
     {
       "type": "cerita",
       "durasi": 6,
-      "narasi": "Di padang savana, ada satu hewan yang melesat lebih cepat dari semua yang lain."
+      "narasi": "Di padang savana, ada satu hewan yang melesat lebih cepat dari semua yang lain.",
+      "kunci": "Hewan tercepat",
+      "stiker": "⚡",
+      "label": "SPEED_DATA"
     },
     {
       "type": "mitos_fakta",
       "durasi": 7,
       "narasi": "Banyak orang mengira singa adalah yang tercepat.",
       "mitos": "Singa adalah hewan darat tercepat",
-      "fakta": "Cheetah jauh lebih cepat dari singa"
+      "fakta": "Cheetah jauh lebih cepat dari singa",
+      "label": "ANALYSIS"
     },
     {
       "type": "bar_chart",
@@ -41,7 +53,8 @@
           "label": "Singa",
           "nilai": 80
         }
-      ]
+      ],
+      "label": "SPRINT_MODE"
     },
     {
       "type": "big_number",
@@ -50,7 +63,8 @@
       "judul": "Akselerasi *cheetah*",
       "angka": 3,
       "satuan": "detik",
-      "keterangan": "dari diam ke 100 km/jam"
+      "keterangan": "dari diam ke 100 km/jam",
+      "label": "RESULT"
     },
     {
       "type": "compare",
@@ -72,7 +86,8 @@
           "Maks sekitar 80 km/jam",
           "Berburu berkelompok"
         ]
-      }
+      },
+      "label": "STATUS_OK"
     },
     {
       "type": "timeline",
@@ -96,14 +111,16 @@
           "label": "Istirahat",
           "teks": "Napas dipulihkan setelah mengejar"
         }
-      ]
+      ],
+      "label": "END_LOG"
     },
     {
       "type": "fakta",
       "durasi": 4,
       "narasi": "Padahal cheetah hanya kuat berlari sebentar.",
       "teks": "Cheetah hanya kuat *sprint* puluhan detik",
-      "ikon": "⏱️"
+      "ikon": "⏱️",
+      "label": "END_LOG"
     },
     {
       "type": "list",
@@ -131,5 +148,6 @@
       "narasi": "Ikuti untuk fakta seru lainnya!",
       "teks": "Ikuti untuk fakta *seru* lainnya!"
     }
-  ]
+  ],
+  "gaya": "STYLE_HUD_TECH"
 }

@@ -28,13 +28,13 @@ GAYA = (
 )
 
 
-def _minta(model: str, teks: str, voice: str):
+def _minta(model: str, teks: str, voice: str, instruksi: str = GAYA):
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY belum diisi.")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     body = {
-        "contents": [{"parts": [{"text": GAYA + teks}]}],
+        "contents": [{"parts": [{"text": instruksi + teks}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}},
@@ -81,13 +81,13 @@ def _simpan(data: bytes, mime: str, path: Path) -> float:
     return len(a) / laju
 
 
-def sintesis(teks: str, voice: str, path: Path) -> float:
+def sintesis(teks: str, voice: str, path: Path, instruksi: str = GAYA) -> float:
     """Buat audio narasi. Sabar saat jatah/sibuk; error RuntimeError bila tetap gagal."""
     terakhir = "tidak diketahui"
     for model in dict.fromkeys(MODELS):
         for percobaan in range(1, 4):
             try:
-                data, mime = _minta(model, teks, voice)
+                data, mime = _minta(model, teks, voice, instruksi)
                 return _simpan(data, mime, path)
             except urllib.error.HTTPError as e:
                 isi = e.read().decode()

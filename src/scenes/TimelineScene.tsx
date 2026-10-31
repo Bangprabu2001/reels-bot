@@ -21,7 +21,7 @@ export const TimelineScene: React.FC<{ scene: Props }> = ({ scene }) => {
       {scene.langkah.map((_, i) => (
         <Sfx key={i} nama="pop" dari={20 + i * 18} volume={0.25} />
       ))}
-      <div style={{ width: "100%", fontFamily: theme.font, color: theme.text }}>
+      <div style={{ width: "100%", fontFamily: theme.fontBody, color: theme.text }}>
         <div style={{ marginBottom: 60 }}>
           <KineticText text={scene.judul} size={68} stagger={3} />
         </div>
