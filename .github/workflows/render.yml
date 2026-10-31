@@ -20,10 +20,21 @@ on:
           - "120"
           - "150"
           - "180"
-      suara:
-        description: "Nama suara Gemini TTS (contoh: Achird, Kore, Aoede, Puck, atau nama dari menu suara AI Studio)"
+      gaya:
+        description: "Gaya video (auto = dipilih dari topik)"
         required: false
-        default: "Achird"
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - STYLE_HUD_TECH
+          - STYLE_PAPER_DAKWAH
+          - STYLE_RETRO_NOIR
+          - STYLE_CLAY_3D
+      suara:
+        description: "Suara narator (auto = sesuai gaya, atau nama suara Gemini TTS seperti Kore, Achird, Puck)"
+        required: false
+        default: "auto"
 
 jobs:
   render:
@@ -47,6 +58,7 @@ jobs:
           TOPIK: ${{ github.event.inputs.topik }}
           DURASI: ${{ github.event.inputs.durasi }}
           SUARA: ${{ github.event.inputs.suara }}
+          GAYA: ${{ github.event.inputs.gaya }}
         run: |
           pip install -r scripts/requirements.txt
           python3 scripts/pipeline.py "$TOPIK"
