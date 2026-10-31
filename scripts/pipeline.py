@@ -108,7 +108,7 @@ SKEMA = """Jenis scene yang boleh dipakai (semuanya wajib punya "gambar"):
 - {"type":"timeline","durasi":8,"narasi":"...","judul":"...","langkah":[{"label":"...","teks":"..."}]}
 - {"type":"list","durasi":7,"narasi":"...","judul":"...","poin":[{"ikon":"satu emoji","teks":"..."}]}
 - {"type":"outro","durasi":4,"narasi":"...","teks":"ajakan singkat; kata penting diapit *bintang*"}
-Field umum: "gambar" = deskripsi SINGKAT bahasa Inggris tentang apa yang digambar untuk scene itu; "label" = tag data dekoratif (hanya untuk STYLE_HUD_TECH, selain itu isi "")."""
+Field umum: "gambar" = deskripsi SINGKAT bahasa Inggris tentang apa yang digambar untuk scene itu; "label" = tag data dekoratif (hanya untuk STYLE_HUD_TECH, selain itu isi "") "broll" = (hanya STYLE_RETRO_NOIR) 1-3 kata kunci bahasa Inggris untuk FOTO stok, selain itu []."""
 
 
 PANDUAN_GAYA = """Pilih SATU gaya visual untuk seluruh video berdasarkan topik. DILARANG mencampur gaya.
@@ -141,6 +141,7 @@ Aturan:
 - Untuk scene "cerita": isi "kunci" (istilah kunci 1-4 kata, bahasa Indonesia, tampil sebagai label tebal) pada sekitar 60% scene cerita, dan "stiker" (satu emoji yang relevan) pada sekitar 40%. Pakai "pertanyaan" untuk hook atau jeda yang memancing rasa ingin tahu (maksimal 2 per video).
 - Hanya fakta yang kamu yakin akurat; angka boleh dibulatkan; jangan mengarang statistik atau sumber.
 - "gambar": untuk SETIAP scene, deskripsi SINGKAT (4-12 kata, bahasa Inggris) tentang hal NYATA dan LITERAL yang disebut narasi, dengan satu subjek utama yang jelas (contoh: "a sleeping man in a bed, moon in the window", "a cheetah running"). JANGAN menyebut gaya visual (gaya ditambahkan otomatis), JANGAN metafora atau konsep abstrak, dan hindari teks, angka, grafik, logo. Sesuaikan dengan gaya: HUD = objek yang bisa digambar sebagai ikon garis tipis (otak, bulan, jam, jantung, tempat tidur); CLAY = benda atau adegan lucu yang mudah dibentuk dari tanah liat (koin, celengan, jam, buku); PAPER dan NOIR = siluet, bangunan (masjid), benda, alam. Untuk topik islami (PAPER dan NOIR), DILARANG menggambarkan Nabi, Rasul, sahabat, malaikat, atau sosok suci; pakai siluet tanpa wajah, bangunan, benda, atau alam.
+- "broll" (hanya untuk STYLE_RETRO_NOIR): 1-3 kata kunci bahasa Inggris, dari paling spesifik ke umum, untuk mencari FOTO stok nyata yang cocok dengan narasi (objek, tempat, atau suasana konkret, contoh: ["desert caravan", "camel desert"], ["ancient mosque", "old architecture"], ["old manuscript", "ancient book"]). Hindari kata abstrak dan hindari kata kunci tentang orang modern. Untuk gaya lain isi [].
 - "label" (hanya untuk STYLE_HUD_TECH): tag dekoratif huruf besar gaya kode, 1-3 kata dipisah garis bawah (contoh: SLEEP_CYCLE, CORTISOL_DIP). JANGAN mengarang angka atau persentase statistik; angka hanya boleh bila memang fakta yang disebut di narasi. Untuk gaya lain isi "".
 - Batas: bar_chart maksimal 5 batang, list maksimal 4 poin, compare maksimal 3 poin per sisi, timeline maksimal 4 langkah; teks di layar singkat.
 - Pastikan JSON valid: di dalam teks JANGAN memakai tanda kutip ganda (gunakan kutip tunggal atau tanpa kutip), tanpa koma berlebih, tanpa komentar."""
@@ -148,7 +149,7 @@ Aturan:
 
 SYS_FAKTA = f"""Kamu Agen Pemeriksa Fakta. Kamu menerima naskah video JSON.
 Periksa setiap klaim dan angka. Perbaiki yang salah atau meragukan, ganti dengan versi yang lebih aman (misalnya pembulatan atau kata 'sekitar').
-Pertahankan struktur, urutan scene, field "gaya", dan semua field (termasuk "gambar" dan "label") kecuali yang perlu diperbaiki.
+Pertahankan struktur, urutan scene, field "gaya", dan semua field (termasuk "gambar", "label", dan "broll") kecuali yang perlu diperbaiki.
 Pastikan JSON valid: di dalam teks jangan memakai tanda kutip ganda (gunakan kutip tunggal), tanpa koma berlebih.
 Balas HANYA JSON valid dengan bentuk {{"gaya":"...","unggah":{{...}},"scenes":[...]}} (pertahankan field "gaya" dan "unggah"), ditambah field
 "catatan_fakta": daftar string singkat tentang hal yang perlu dicek manusia (kosongkan jika tidak ada).
@@ -158,6 +159,7 @@ SYS_KURATOR = """Kamu Agen Kurator Footage untuk video edukasi vertikal. Kamu me
 Untuk SETIAP scene, pilih satu gambar yang paling cocok sebagai video latar untuk narasinya.
 Pilih hanya jika isi gambar benar-benar sesuai dengan tema dan narasi (objek, hewan, tempat, atau suasana yang disebut jelas terlihat).
 Beri nomor 0 jika semua gambar pada scene itu generik, tidak nyambung, memuat teks/logo/watermark yang mencolok, atau menampilkan orang yang tidak relevan.
+Untuk topik sejarah, tolak foto yang menampilkan wajah orang modern, mobil, gedung modern, atau teks/logo/watermark.
 Lebih baik 0 daripada footage yang salah.
 Balas HANYA JSON: {"pilihan":[{"scene":<nomor scene>,"nomor":<nomor gambar atau 0>,"alasan":"<satu kalimat>"}]} dan sertakan semua scene."""
 
@@ -545,6 +547,100 @@ def agen_broll(naskah: dict, slug: str, topik: str) -> dict:
     return naskah
 
 
+# ---------------------------------------------------------------- Foto arsip (gaya Noir)
+
+def kandidat_foto_pixabay(query: str, dipakai: set) -> list:
+    """Kumpulkan kandidat FOTO dari Pixabay (vertikal dulu, lalu horizontal yang dipotong tengahnya)."""
+    hasil: dict = {}
+    for orientasi in ("vertical", "horizontal"):
+        param = {
+            "key": PIXABAY_KEY,
+            "q": query[:100],
+            "image_type": "photo",
+            "orientation": orientasi,
+            "per_page": 15,
+            "safesearch": "true",
+            "min_height": 900,
+        }
+        data = _json("https://pixabay.com/api/?" + urllib.parse.urlencode(param))
+        for h in data.get("hits", []):
+            if h.get("id") in dipakai or h.get("id") in hasil:
+                continue
+            link = h.get("largeImageURL") or h.get("webformatURL")
+            thumb = h.get("webformatURL") or h.get("previewURL")
+            if not link or not thumb:
+                continue
+            hasil[h["id"]] = {
+                "id": h["id"],
+                "link": link,
+                "thumb": thumb,
+                "durasi": 9999,  # foto: tidak terikat durasi klip
+                "pembuat": h.get("user", "?"),
+                "tags": (h.get("tags") or "").lower(),
+                "portrait": h.get("imageHeight", 0) > h.get("imageWidth", 0),
+            }
+    return list(hasil.values())
+
+
+def agen_foto(naskah: dict, slug: str, topik: str) -> dict:
+    """Agen Foto Arsip (gaya Noir): cari foto Pixabay, Gemini memilih yang cocok, lalu diunduh.
+    Tampilannya diubah jadi hitam putih ala fotokopi oleh Remotion. Scene tanpa foto yang cocok
+    akan diisi gambar AI oleh Agen Ilustrator."""
+    folder = siapkan_folder(ROOT / "public" / "gambar" / slug)
+    tugas = []
+    for i, s in enumerate(naskah["scenes"]):
+        queries = s.get("broll") or []
+        if not queries or s.get("gambarSrc"):
+            continue
+        try:
+            pool: list = []
+            for q in queries:
+                for k in kandidat_foto_pixabay(q, set()):
+                    if all(k["id"] != x["id"] for x in pool):
+                        pool.append(k)
+                if len(pool) >= 14:
+                    break
+            valid = []
+            for k in peringkat(pool, queries, 0, batas=4):
+                try:
+                    k["_gambar"] = _ambil_gambar(k["thumb"])
+                    valid.append(k)
+                except Exception:
+                    continue
+            if valid:
+                tugas.append({"i": i, "narasi": s["narasi"], "kands": valid})
+                print(f"  scene {i}: {len(valid)} foto kandidat untuk {queries}")
+            else:
+                print(f"  scene {i}: tidak ada foto untuk {queries}, nanti pakai gambar AI")
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"  scene {i}: pencarian foto gagal ({e}), nanti pakai gambar AI")
+
+    naskah.setdefault("kredit_broll", [])
+    if not tugas:
+        return naskah
+    pilihan = kurator_batch(topik, tugas)
+
+    dipakai: set = set()
+    dapat = 0
+    for tg in tugas:
+        i = tg["i"]
+        pilih = pilihan.get(i)
+        if not pilih or pilih["id"] in dipakai:
+            print(f"  scene {i}: foto arsip tidak ada yang cocok, nanti pakai gambar AI")
+            continue
+        try:
+            unduh(pilih["link"], folder / f"scene_{i}.jpg")
+            naskah["scenes"][i]["gambarSrc"] = f"gambar/{slug}/scene_{i}.jpg"
+            dipakai.add(pilih["id"])
+            naskah["kredit_broll"].append(f"Photo by {pilih['pembuat']} on Pixabay")
+            dapat += 1
+        except Exception as e:
+            print(f"  scene {i}: unduh foto gagal ({e}), nanti pakai gambar AI")
+    print(f"  foto arsip terpasang: {dapat} dari {len(tugas)} scene")
+    return naskah
+
+
 # ---------------------------------------------------------------- Ilustrator
 
 def _url_gambar(prompt: str, seed: int, kunci: str):
@@ -589,7 +685,7 @@ def agen_ilustrator(naskah: dict, slug: str) -> dict:
     jeda = 3 if POLLI_KEY else 16  # tanpa kunci, batasnya sekitar 1 gambar per 15 detik
     dibuat = berhasil = 0
     for i, s in enumerate(naskah["scenes"]):
-        if not s.get("gambar") or dibuat >= MAKS_GAMBAR:
+        if not s.get("gambar") or s.get("gambarSrc") or dibuat >= MAKS_GAMBAR:
             continue
         prompt = GAYA_INFO[naskah["gaya"]]["template"].format(desc=s["gambar"])[:700]
         print(f"  scene {i}: membuat ilustrasi...")
@@ -650,7 +746,13 @@ def main() -> None:
     catatan = naskah.get("catatan_fakta") or []
     print("[3/4] Agen Suara + Subtitle...")
     naskah = asyncio.run(agen_suara(naskah, slug))
-    print("[4/4] Agen Ilustrator (gambar kartun)...")
+    if naskah["gaya"] == "STYLE_RETRO_NOIR":
+        if PIXABAY_KEY:
+            print("[4a] Agen Foto Arsip (Pixabay) untuk gaya Noir...")
+            naskah = agen_foto(naskah, slug, topik)
+        else:
+            print("[4a] PIXABAY_API_KEY kosong: gaya Noir memakai gambar AI saja.")
+    print("[4/4] Agen Ilustrator (gambar AI untuk scene yang belum punya gambar)...")
     naskah = agen_ilustrator(naskah, slug)
     if os.environ.get("BROLL") == "ya":  # opsional: video stok sebagai tambahan (bawaan: mati)
         print("[+] Agen Kurator Footage (b-roll)...")
