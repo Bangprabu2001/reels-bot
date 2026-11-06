@@ -1,0 +1,108 @@
+{
+  "1": {
+    "id": "1",
+    "nama": "CINEMATIC DUAL TIMELINE POV REUNION",
+    "referensi": "Video KPR vs Ngontrak",
+    "tujuan_emosi": "Penonton harus merasa TERTAMPAR dan MENYESAL di akhir, lalu berpikir 'Untung aku nonton ini sekarang'.",
+    "topik_cocok": ["Keuangan", "Karir", "Kesehatan", "Parenting", "Kebiasaan Hidup", "Perbandingan 2 Nasib"],
+    "kata_cari_berita": ["keuangan pribadi", "gaji dan cicilan", "kebiasaan hidup sehat", "karir kerja", "parenting anak"],
+    "contoh_judul": "KPR 10 Tahun vs Ngontrak 10 Tahun, Siapa Yang Punya Rumah + Tabungan di Tahun 10?",
+    "babak": [
+      {"no": 1, "nama": "SAME CONDITION", "detik": [0, 10], "isi": "Tampilkan 2 karakter laki-laki umur 25, gaji sama Rp 7 Juta, tinggal di kos yang sama, masalah yang sama. Berdiri bersebelahan, tersenyum. Teks layar: 'TAHUN 0 - TITIK AWAL SAMA'."},
+      {"no": 2, "nama": "PATH A INSTAN", "detik": [10, 30], "isi": "Karakter KIRI pilih jalan enak di awal (contoh: ngontrak enak, beli HP baru, nongkrong tiap minggu, cicilan motor). Tampilkan dia bahagia, tertawa, belanja."},
+      {"no": 3, "nama": "PATH B PROSES", "detik": [30, 50], "isi": "Karakter KANAN pilih jalan sakit di awal (contoh: ambil KPR kecil, hidup hemat, bawa bekal, nabung). Tampilkan dia capek, sederhana, tapi konsisten."},
+      {"no": 4, "nama": "REUNI / PAYOFF", "detik": [50, 75], "isi": "10 TAHUN kemudian mereka bertemu lagi di tempat yang sama (warung kopi lama). Nasib TERBALIK TOTAL. KIRI kusam, masih ngontrak, tidak punya aset, wajah lelah. KANAN rapi, punya rumah sendiri, punya tabungan, wajah tenang. Diakhiri pertanyaan ke penonton: 'Kamu mau jadi yang kiri atau yang kanan?'"}
+    ],
+    "rule_visual": [
+      "Gaya: Semi-Realistic 3D, bukan kartun 2D, bukan paper-cut. Kulit bertekstur, baju berlipatan, rambut detail, lighting cinematic hangat kekuningan, depth of field (background blur).",
+      "SPLIT SCREEN 50:50 wajib: layar dibagi 2 vertikal tepat di tengah. KIRI selalu Karakter 1 (Path A), KANAN selalu Karakter 2 (Path B). Muncul di 70% durasi. Jangan full screen 1 karakter kecuali Babak 1 dan Babak 4.",
+      "TIMELINE BAR di atas wajib: garis horizontal titik TAHUN 0 -> 1 -> 3 -> 5 -> 10, panah bergerak kiri ke kanan seiring video. Saat timeline bergerak umur bertambah, rambut sedikit beruban, baju berubah sesuai nasibnya.",
+      "ANGKA MELAYANG wajib: font tebal besar melayang di atas objek. Di atas rumah ngontrak '-Rp 2 Juta / Bulan HILANG' MERAH. Di atas rumah KPR '+Aset Rp 350 Juta' HIJAU. Di atas tabungan 'Rp 0' vs 'Rp 120 Juta'. Angka bergerak naik/turun seperti counter.",
+      "PROPS NYATA wajib yang berubah: kunci rumah, koper pindahan, motor makin tua vs motor baru, anak tumbuh dari bayi jadi anak SD, dompet makin tipis vs makin tebal.",
+      "Kamera: Babak 2 dan 3 Slow Zoom In pelan. Babak 4 Wide Shot, 2 karakter duduk berhadapan.",
+      "Karakter konsisten: wajah 2 karakter TIDAK BOLEH berubah. Yang berubah hanya baju, ekspresi, kondisi fisik. Model baju utama sama dari awal sampai akhir, hanya warnanya memudar atau makin bagus.",
+      "Teks: font tebal putih outline hitam. Judul babak muncul besar di tengah sesaat: 'TAHUN 0 - TITIK AWAL SAMA', 'TAHUN 5 - MULAI TERLIHAT BEDANYA', 'TAHUN 10 - REUNI'."
+    ],
+    "voiceover": {
+      "gaya": "narator film, pelan, emosional, seperti sedang bercerita",
+      "wajib": ["Kalimat pembuka WAJIB: 'Bayangkan... Dua orang ini...'", "Kalimat penutup WAJIB berupa pertanyaan refleksi"],
+      "pembuka": "bayangkan",
+      "kata_per_detik": 2.3,
+      "tts_voice": "id-ID-ArdiNeural", "tts_rate": "-8%", "tts_pitch": "+0Hz", "jeda": 0.3
+    },
+    "dilarang": ["kertas gunting / paper-cut", "karakter faceless tanpa wajah", "blueprint / denah", "grafik bisnis"],
+    "gaya_gambar": "semi-realistic 3D render, detailed skin texture, clothing folds, detailed hair, cinematic warm yellowish lighting, shallow depth of field, blurred background, vertical 9:16 composition",
+    "kata_wajib_prompt": ["semi-realistic 3D"],
+    "kata_dilarang_prompt": ["paper-cut", "paper cut", "papercut", "faceless", "blueprint", "business chart", "2d flat", "cartoon"]
+  },
+  "2": {
+    "id": "2",
+    "nama": "PAPER-CUT POP-UP BOOK FACELESS",
+    "referensi": "Video Tahiyat / Sayyidina",
+    "tujuan_emosi": "Penonton harus merasa TENANG, DAPAT ILMU, dan YAKIN, bukan digurui atau diajak debat. Seperti dibuka-bukakan kitab oleh guru yang lembut.",
+    "topik_cocok": ["Dakwah", "Fiqih", "Dalil", "Sejarah Islam", "Akhlak", "Pendidikan Agama"],
+    "kata_cari_berita": ["fiqih ibadah", "sejarah Islam", "akhlak Islam", "dalil sholat", "kajian ustadz"],
+    "contoh_judul": "Kenapa di Adzan Tidak Ada Sayyidina Tapi di Sholawat Ada?",
+    "babak": [
+      {"no": 1, "nama": "PERTANYAAN", "detik": [0, 10], "isi": "Muncul pertanyaan yang sering diperdebatkan (contoh: 'Boleh gak sih baca Sayyidina di Tahiyat?'). Karakter sedang bertanya, tanda tanya besar di atas kepala."},
+      {"no": 2, "nama": "JAWABAN + DALIL", "detik": [10, 30], "isi": "Jawab langsung singkat, lalu tampilkan dalilnya. Tampilkan teks Arab + Artinya."},
+      {"no": 3, "nama": "PENJELASAN KITAB / ULAMA", "detik": [30, 55], "isi": "Bedah kenapa begitu dengan logika kitab. Tampilkan kitab terbuka, penjelasan ulama, perbedaan pendapat dengan adil tanpa menyalahkan. 2 kitab terbuka berdampingan."},
+      {"no": 4, "nama": "KESIMPULAN ITTIBA", "detik": [55, 75], "isi": "Kesimpulan tenang (contoh: 'Jadi dalam ibadah, kita ikut apa yang dicontohkan, itulah ittiba'). Diakhiri doa lembut dan ajakan belajar lagi, bukan ajakan debat."}
+    ],
+    "rule_visual": [
+      "Gaya: PAPER-CUT / KERTAS GUNTING 100%. Semua objek seperti kertas digunting dan ditempel, tekstur serat kertas, bayangan kertas di bawah objek seolah terangkat 2mm dari background. Bukan 3D realistis, bukan 2D flat biasa.",
+      "KARAKTER FACELESS MUTLAK: semua karakter manusia TIDAK BOLEH punya mata, hidung, mulut, alis. Wajah polos warna kulit kertas. Pakaian: koko putih, peci hitam, sorban. Laki-laki pakai peci, perempuan pakai hijab (jika ada). Ini pilihan adab agar fokus ke ilmu.",
+      "EFEK POP-UP BOOK wajib: tiap ganti babak layar seperti MEMBUKA HALAMAN BUKU. Objek muncul dari bawah ke atas seperti buku pop-up. Masjid pop-up dari bawah, kitab pop-up terbuka, dokumen pop-up, tangan pop-up. Ada efek kertas terlipat di tengah buku.",
+      "Warna: palet lembut saja. Krem #F5EEDD, coklat muda, hijau zaitun, emas. Background meja kayu + kertas tua. DILARANG neon, merah menyala, pink menyala.",
+      "TEKS DALIL BESAR wajib: teks Arab BESAR di tengah layar dengan bingkai kertas emas. Di bawahnya artinya Bahasa Indonesia. Kata kunci di-highlight kuning emas. Contoh teks: 'TIDAK ADA TAMBAHAN', 'ITTIBA IBADAH'. Font Arab harus jelas dan benar.",
+      "Gerakan SANGAT LAMBAT dan HALUS seperti stop-motion kertas. Tidak ada zoom cepat, gerakan kasar, guncangan kamera. Semua transisi adalah lipatan kertas.",
+      "Props wajib: buku kitab terbuka, tasbih, masjid, sajadah, lampu gantung. Semua gaya paper-cut, bukan foto asli."
+    ],
+    "voiceover": {
+      "gaya": "tenang, lembut, berwibawa, seperti ustadz mengajar di majelis. Kecepatan PELAN, jeda antar kalimat 0.5 detik. Dilarang ngegas, teriak, bahasa gaul kasar",
+      "wajib": ["Kecepatan bicara PELAN", "Dilarang ngegas, dilarang teriak, dilarang bahasa gaul kasar", "Penutup berupa doa lembut dan ajakan belajar lagi, bukan ajakan debat"],
+      "pembuka": "",
+      "kata_per_detik": 1.9,
+      "tts_voice": "id-ID-ArdiNeural", "tts_rate": "-18%", "tts_pitch": "-3Hz", "jeda": 0.5
+    },
+    "dilarang": ["menampilkan wajah manusia", "split screen 50:50", "angka melayang merah/hijau", "musik jedag-jedug", "blueprint"],
+    "gaya_gambar": "paper-cut collage art, 100% cut paper layers with visible paper fiber texture and soft drop shadows lifting 2mm from the background, pop-up book scene, faceless human figures with completely blank plain skin-colored paper faces (no eyes, no nose, no mouth, no eyebrows), white koko shirt, black peci cap, turban, soft palette cream #F5EEDD, light brown, olive green, gold, old wooden table and aged paper background, vertical 9:16 composition",
+    "kata_wajib_prompt": ["paper-cut", "faceless"],
+    "kata_dilarang_prompt": ["split screen", "blueprint", "neon", "3d render", "realistic photo", "photorealistic", "hot pink"]
+  },
+  "3": {
+    "id": "3",
+    "nama": "POV BLUEPRINT EXPLAINER 2D",
+    "referensi": "Video SPBU",
+    "tujuan_emosi": "Penonton harus merasa KAGET dan TERTIPU oleh fantasinya sendiri. Awalnya 'Enak banget jadi bos', di akhir 'Oh ternyata segini beratnya, untung aku nonton dulu'.",
+    "topik_cocok": ["Bedah Bisnis", "Bongkar Usaha", "Investasi", "Finansial", "Misteri Bisnis", "Kenapa Brand Besar Bangkrut"],
+    "kata_cari_berita": ["bisnis waralaba", "modal usaha", "investasi", "brand bangkrut", "bongkar usaha"],
+    "contoh_judul": "SPBU di Desa vs di Kota, Mana Yang Lebih Cepat Balik Modal 10 Miliar?",
+    "babak": [
+      {"no": 1, "nama": "POV FANTASI", "detik": [0, 10], "isi": "Buka dengan 'POV: Kamu Adalah Pemilik [Usaha]'. Tampilkan fantasi enak: tidur dapat duit, jadi bos, mobil mewah, orang antre. Penonton merasa sudah kaya."},
+      {"no": 2, "nama": "BONGKAR MODAL", "detik": [10, 30], "isi": "Bongkar realita modal awal yang BESAR dengan rincian (lahan, bangunan, peralatan, izin, dst) dan total. Tampilkan kalkulator yang menghitung."},
+      {"no": 3, "nama": "BONGKAR MARGIN & BIAYA", "detik": [30, 55], "isi": "Bongkar margin yang KECIL dan biaya BESAR. Matematika margin, volume, gross, dipotong OPEX (gaji, listrik, perawatan, dst), sisa bersih, BEP. Semua angka dalam tabel. Wajib ada kolom MITOS vs REALITA."},
+      {"no": 4, "nama": "RISIKO & KESIMPULAN PAHIT", "detik": [55, 75], "isi": "Tampilkan 3 risiko terbesar. Skenario volume/omzet turun 50% -> BEP melonjak (atau tidak pernah tercapai kalau rugi). Grafik merah turun tajam. Kesimpulan pahit, contoh: 'Ini bukan bisnis cepat kaya, tapi bisnis kunci aset'."}
+    ],
+    "rule_visual": [
+      "Gaya: 2D FLAT ILLUSTRATION DETAIL TINGGI. Bukan kartun lucu, bukan 3D realistis, bukan paper-cut. Detail seperti ilustrasi buku bisnis. Karakter utama 1 orang saja (contoh 'Pak Budi, kemeja biru, kacamata'), KONSISTEN dari awal sampai akhir.",
+      "BLUEPRINT / X-RAY VIEW wajib sering muncul: potongan tanah / potongan gedung, denah lahan dengan garis ukur, diagram mesin, potongan bangunan. Seperti blueprint arsitek, ada garis ukur dan angka meter, warna biru blueprint / putih.",
+      "BACKGROUND LETTERBOX wajib: atas dan bawah layar bar hitam. Di tengah bar atas teks putih kecil 'POV - Kamu Adalah Pemilik [Nama Usaha]'. Bar tidak boleh hilang.",
+      "INFOGRAFIS DATA BERAT wajib: angka muncul sebagai Tabel, Kalkulator, Grafik, DITULIS di layar, bukan hanya diucapkan. Angka harus dihitung dengan benar, jangan asal.",
+      "PERBANDINGAN MITOS VS REALITA wajib: 2 kolom berdampingan. KIRI = MITOS (hijau/cerah), KANAN = REALITA (merah/gelap). Muncul di Babak 3.",
+      "GRAFIK TURUN wajib: saat volume turun 50%, grafik garis merah turun tajam dari atas ke bawah dengan teks besar hasil BEP. Ada sumbu X dan Y.",
+      "SUBTITLE HIGHLIGHT wajib: subtitle kecil di bawah layar, kata penting berwarna PINK / KUNING dan HURUF KAPITAL."
+    ],
+    "voiceover": {
+      "gaya": "dokumenter investigasi, tegas, seperti membongkar rahasia. Kecepatan sedang, tegas",
+      "wajib": ["Gunakan kalimat: 'Bayangkan kamu adalah...', 'Ternyata...', 'Ini yang tidak diceritakan orang...'"],
+      "pembuka": "pov",
+      "kata_per_detik": 2.5,
+      "tts_voice": "id-ID-ArdiNeural", "tts_rate": "+0%", "tts_pitch": "+0Hz", "jeda": 0.25
+    },
+    "dilarang": ["split screen 50:50", "karakter faceless paper-cut", "drama reuni nangis-nangis", "karakter 2 orang"],
+    "gaya_gambar": "high detail 2D flat illustration like a business book illustration, not cartoonish, not 3D, not paper-cut, single main character with a consistent face, architect blueprint x-ray cutaway view with measurement lines and meter numbers in blueprint blue and white, vertical 9:16 composition",
+    "kata_wajib_prompt": ["2D flat illustration"],
+    "kata_dilarang_prompt": ["paper-cut", "paper cut", "faceless", "split screen", "3d render", "photorealistic", "two men", "two people", "two characters"]
+  }
+}
