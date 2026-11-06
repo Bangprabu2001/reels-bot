@@ -36,6 +36,7 @@ def load_json(path, default=None):
 
 
 def save_json(path, obj):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)  # folder dibuat otomatis kalau belum ada
     Path(path).write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
