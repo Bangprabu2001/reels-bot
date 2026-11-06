@@ -19,7 +19,6 @@ OUT.mkdir(exist_ok=True)
 GEM = "https://generativelanguage.googleapis.com/v1beta"
 MIN_GAP = 4.5  # detik antar panggilan Gemini (jaga batas gratis ~15 per menit)
 _last_call = 0.0
-_model = None
 
 
 def log(*a):
@@ -48,60 +47,124 @@ def _key():
     return k
 
 
-def pick_model():
-    """Pilih model Flash terbaru yang bisa dipakai. Bisa dipaksa lewat GEMINI_MODEL."""
-    global _model
-    if _model:
-        return _model
-    forced = os.environ.get("GEMINI_MODEL", "").strip()
-    if forced:
-        _model = forced
-        return _model
+_daftar = None
+_habis = {}              # model -> waktu (epoch) boleh dicoba lagi
+_tanpa_thinking = set()  # model yang menolak pengaturan thinking
+MODEL_TERPAKAI = []      # model yang benar-benar menjawab (untuk catatan di Telegram)
+CADANGAN = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+
+
+def daftar_model():
+    """Urutan model: stabil dulu (versi terbaru di atas), lalu preview, lalu 'lite'. GEMINI_MODEL jadi pilihan pertama."""
+    global _daftar
+    if _daftar is not None:
+        return _daftar
+    ranking = []
     try:
-        r = requests.get(f"{GEM}/models", params={"key": _key(), "pageSize": 200}, timeout=60)
-        best, best_v = None, -1.0
+        r = requests.get(f"{GEM}/models", params={"key": _key(), "pageSize": 200}, timeout=30)
         for m in r.json().get("models", []):
             name = m.get("name", "").replace("models/", "")
             if "generateContent" not in m.get("supportedGenerationMethods", []):
                 continue
-            if "flash" not in name or any(x in name for x in ("lite", "image", "tts", "live", "audio", "thinking", "robotics", "embedding")):
+            if "flash" not in name or any(x in name for x in ("image", "tts", "live", "audio", "robotics", "embedding", "thinking", "native")):
                 continue
             mv = re.search(r"gemini-(\d+(?:\.\d+)?)-flash", name)
-            if not mv:
-                continue
-            v = float(mv.group(1))
-            if v > best_v or (v == best_v and best and "preview" in best and "preview" not in name):
-                best, best_v = name, v
-        _model = best or "gemini-2.5-flash"
-    except Exception:
-        _model = "gemini-2.5-flash"
-    log(f"[gemini] model dipakai: {_model}")
-    return _model
+            if mv:
+                ranking.append((("lite" in name, "preview" in name or "-exp" in name, -float(mv.group(1))), name))
+    except Exception as e:
+        log(f"[gemini] gagal membaca daftar model: {e}")
+    ranking.sort()
+    names = []
+    for _, n in ranking:
+        if n not in names:
+            names.append(n)
+    if not names:
+        names = list(CADANGAN)
+    forced = os.environ.get("GEMINI_MODEL", "").strip()
+    if forced:
+        names = [forced] + [n for n in names if n != forced]
+    _daftar = names
+    log(f"[gemini] urutan model: {', '.join(names[:6])}")
+    return names
 
 
-def _call(prompt, system, json_out, grounded, temperature, retries=4):
+def model_aktif():
+    now = time.time()
+    for n in daftar_model():
+        if _habis.get(n, 0) <= now:
+            return n
+    return None
+
+
+def tandai_habis(model, detik, alasan):
+    _habis[model] = time.time() + detik
+    nxt = model_aktif()
+    log(f"[gemini] {model} {alasan}; " + (f"pindah ke {nxt}" if nxt else "semua model sedang tidak bisa dipakai"))
+
+
+def _call(prompt, system, json_out, grounded, temperature, retries=12, max_tokens=8192):
     global _last_call
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": temperature},
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
     }
+    thinking_off = os.environ.get("GEMINI_THINKING", "") != "1"
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
     if grounded:
         body["tools"] = [{"google_search": {}}]
     elif json_out:
         body["generationConfig"]["responseMimeType"] = "application/json"
-    last_err = ""
-    for i in range(retries):
+    gagal, sudah_menunggu = {}, False
+    for _ in range(retries):
+        model = model_aktif()
+        if model is None:
+            sisa = min(_habis.values()) - time.time()
+            if 0 < sisa <= 120 and not sudah_menunggu:
+                sudah_menunggu = True
+                log(f"[gemini] semua model kena batas sementara, menunggu {sisa:.0f} detik")
+                time.sleep(sisa + 1)
+                continue
+            raise RuntimeError("Kuota semua model Gemini sedang habis. Coba lagi nanti "
+                               "(kuota harian gratis biasanya reset sore hari sekitar jam 14.00-15.00 WIB).")
+        cfg = body["generationConfig"]
+        if thinking_off and model not in _tanpa_thinking:
+            cfg["thinkingConfig"] = {"thinkingBudget": 0}
+        else:
+            cfg.pop("thinkingConfig", None)
         wait = MIN_GAP - (time.time() - _last_call)
         if wait > 0:
             time.sleep(wait)
-        r = requests.post(f"{GEM}/models/{pick_model()}:generateContent",
-                          params={"key": _key()}, json=body, timeout=240)
+        try:
+            r = requests.post(f"{GEM}/models/{model}:generateContent",
+                              params={"key": _key()}, json=body, timeout=100)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            _last_call = time.time()
+            gagal[model] = gagal.get(model, 0) + 1
+            log(f"[gemini] {model}: {type(e).__name__} ({gagal[model]}x)")
+            if gagal[model] >= 2:
+                tandai_habis(model, 300, "tidak merespons")
+            time.sleep(5)
+            continue
         _last_call = time.time()
-        if r.status_code in (429, 500, 503):
-            last_err = f"{r.status_code}"
-            time.sleep(12 * (i + 1))
+        teks = r.text.lower()
+        if r.status_code == 429:
+            harian = "perday" in teks or "per day" in teks or "daily" in teks
+            tandai_habis(model, 21600 if harian else 70, "kuota habis (harian)" if harian else "kena batas per menit")
+            continue
+        if r.status_code == 404 or (r.status_code == 400 and "not found" in teks):
+            tandai_habis(model, 86400, "tidak tersedia")
+            continue
+        if r.status_code == 400 and "thinking" in teks and "thinkingConfig" in cfg:
+            _tanpa_thinking.add(model)
+            log(f"[gemini] {model} menolak pengaturan thinking, diulang tanpa itu")
+            continue
+        if r.status_code in (500, 503):
+            gagal[model] = gagal.get(model, 0) + 1
+            log(f"[gemini] {model} status {r.status_code} ({gagal[model]}x)")
+            if gagal[model] >= 2:
+                tandai_habis(model, 300, "sedang bermasalah")
+            time.sleep(6)
             continue
         if r.status_code != 200:
             raise RuntimeError(f"Gemini error {r.status_code}: {r.text[:300]}")
@@ -110,7 +173,10 @@ def _call(prompt, system, json_out, grounded, temperature, retries=4):
             cand = data["candidates"][0]
             text = "".join(p.get("text", "") for p in cand["content"]["parts"])
         except Exception:
-            raise RuntimeError(f"Gemini tidak memberi jawaban: {str(data)[:300]}")
+            tandai_habis(model, 120, "tidak memberi jawaban")
+            continue
+        if model not in MODEL_TERPAKAI:
+            MODEL_TERPAKAI.append(model)
         sources, seen = [], set()
         for ch in cand.get("groundingMetadata", {}).get("groundingChunks", []):
             w = ch.get("web")
@@ -118,7 +184,7 @@ def _call(prompt, system, json_out, grounded, temperature, retries=4):
                 seen.add(w["uri"])
                 sources.append({"judul": w.get("title", ""), "url": w["uri"]})
         return text, sources
-    raise RuntimeError(f"Gemini sibuk/limit habis ({last_err}). Coba lagi nanti.")
+    raise RuntimeError("Gemini tidak berhasil menjawab setelah beberapa kali mencoba model. Coba lagi nanti.")
 
 
 def gemini_text(prompt, system=None, temperature=0.8):

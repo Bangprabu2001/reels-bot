@@ -102,13 +102,13 @@ BAHAN MENTAH (tren Google Indonesia): {trends or 'kosong'}
 BAHAN MENTAH (berita 7 hari terakhir): {berita or 'kosong'}
 TOPIK YANG SUDAH PERNAH DIBUAT/DITOLAK, JANGAN ULANGI: {sudah + ditolak_log or 'belum ada'}
 
-Buat 8 ide topik. Aturan keras:
+Buat 6 ide topik. Aturan keras:
 1. Dilarang generik seperti "Cara Kaya" atau "Tips Sukses".
 2. Setiap ide WAJIB punya SUDUT PANDANG BARU, berbentuk perbandingan/pertanyaan tajam. Contoh gaya yang diinginkan: "{mode['contoh_judul']}".
 3. Topik harus cocok untuk MODE {mode['id']} dan bisa dibuktikan dengan data asli yang bisa dicari di internet.
 4. Boleh terinspirasi bahan mentah, tapi jangan menyalin judul berita.
 
-Jawab HANYA JSON array berisi 8 objek:
+Jawab HANYA JSON array berisi 6 objek:
 {{"judul": "...", "sudut_baru": "apa sudut pandang barunya", "kenapa_belum_dibahas": "...", "kata_cari": "2-5 kata untuk cek video serupa", "generik": false, "skor_baru": 1-10}}"""
         ide = gemini_json(prompt, temperature=1.0)
         if isinstance(ide, dict):

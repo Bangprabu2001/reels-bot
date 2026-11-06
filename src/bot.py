@@ -7,7 +7,6 @@ import os
 import traceback
 
 from .common import DATA, gemini_json, load_json, log, save_json
-from .factory import buat_video, catat_topik
 from .s2_router import parse_perintah
 from .s7_telegram import keyboard, kirim_teks, tg
 
@@ -68,6 +67,7 @@ Jangan menambah fakta baru. Jawab HANYA JSON: {{"caption": "...", "hashtag": ["#
 
 
 def tangani_pesan(m, state):
+    from .factory import buat_video
     chat = str(m["chat"]["id"])
     teks = (m.get("text") or "").strip()
     if not pemilik():
@@ -94,6 +94,7 @@ def tangani_pesan(m, state):
 
 
 def tangani_tombol(cq, state):
+    from .factory import buat_video, catat_topik
     chat = str(cq["message"]["chat"]["id"])
     if not pemilik() or chat != pemilik():
         return
@@ -134,9 +135,12 @@ def tangani_tombol(cq, state):
 def jalan():
     state = load_json(STATE, {"offset": 0, "menunggu_caption": {}})
     state.setdefault("menunggu_caption", {})
-    for u in ambil_update(state):
-        state["offset"] = u["update_id"] + 1
+    updates = ambil_update(state)
+    if updates:  # tandai "sudah dibaca" di sisi Telegram sekarang juga, supaya tidak pernah diproses dua kali
+        state["offset"] = updates[-1]["update_id"] + 1
         save_json(STATE, state)
+        tg("getUpdates", offset=state["offset"], limit=1, timeout=0)
+    for u in updates:
         try:
             if u.get("message"):
                 tangani_pesan(u["message"], state)
@@ -156,10 +160,11 @@ def main():
     ap.add_argument("--mode", default="")
     ap.add_argument("--jumlah", default="1")
     a = ap.parse_args()
-    if a.cek:
+    if a.cek:  # ringan: tidak memuat pustaka video
         cek()
         return
     if a.mode.strip() in ("1", "2", "3") and pemilik():
+        from .factory import buat_video
         for _ in range(max(1, min(int(a.jumlah or 1), 3))):
             buat_video(a.mode.strip(), pemilik())
     jalan()
