@@ -1,25 +1,25 @@
 name: Pabrik Konten
 
+# Dinyalakan oleh Cloudflare Worker saat kamu menekan tombol di Telegram.
+# Bisa juga dijalankan manual: Actions -> Pabrik Konten -> Run workflow.
 on:
-  schedule:
-    - cron: "*/10 * * * *"   # cek pesan Telegram tiap ~10 menit (GitHub boleh telat beberapa menit)
   workflow_dispatch:
     inputs:
-      mode:
-        description: "Isi 1, 2, atau 3 untuk langsung bikin video. Kosongkan untuk hanya memeriksa pesan Telegram."
-        required: false
-        default: ""
-      jumlah:
-        description: "Jumlah video (maks 3)"
+      aksi:
+        description: "mode / ok / re / no / caption  (dari tombol Telegram)"
+        required: true
+        default: "mode"
+      data:
+        description: "mode: 1, 2, atau 3 (boleh 2:3 = tiga video). Tombol lain: otomatis"
         required: false
         default: "1"
+      chat:
+        description: "Chat ID Telegram kamu (kosongkan kalau secret TELEGRAM_CHAT_ID sudah diisi)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
-
-concurrency:
-  group: pabrik
-  cancel-in-progress: false
 
 jobs:
   kerja:
@@ -32,8 +32,9 @@ jobs:
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-      MODE_INPUT: ${{ github.event.inputs.mode }}
-      JUMLAH_INPUT: ${{ github.event.inputs.jumlah }}
+      AKSI: ${{ github.event.inputs.aksi }}
+      DATA_INPUT: ${{ github.event.inputs.data }}
+      CHAT_INPUT: ${{ github.event.inputs.chat }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,25 +43,19 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Pasang pustaka ringan
+      - name: Pasang pustaka Python
         run: pip install -r requirements.txt
 
-      - name: Ada pesan baru dari kamu?
-        id: cek
-        run: python -m src.bot --cek
-
-      - name: Pasang alat produksi video
-        if: steps.cek.outputs.ada_kerja == 'true' || env.MODE_INPUT != ''
+      - name: Pasang ffmpeg dan font (hanya untuk membuat video)
+        if: env.AKSI == 'mode' || env.AKSI == 're' || env.AKSI == 'no'
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-core libraqm0 libfribidi0
-          pip install -r requirements.txt
 
       - name: Jalankan pabrik
-        if: steps.cek.outputs.ada_kerja == 'true' || env.MODE_INPUT != ''
-        run: python -m src.bot --jalan --mode "$MODE_INPUT" --jumlah "$JUMLAH_INPUT"
+        run: python -m src.bot --aksi "$AKSI" --data "$DATA_INPUT" --chat "$CHAT_INPUT"
 
-      - name: Simpan database topik dan status
+      - name: Simpan data (cadangan)
         if: always()
         run: |
           git config user.name "pabrik-bot"
@@ -68,6 +63,8 @@ jobs:
           git add data
           if ! git diff --cached --quiet; then
             git commit -m "update data pabrik"
-            git pull --rebase origin "${{ github.ref_name }}" || true
-            git push || true
+            for i in 1 2 3 4; do
+              git pull --rebase origin "${{ github.ref_name }}" && git push && break
+              sleep $((i*4))
+            done
           fi
