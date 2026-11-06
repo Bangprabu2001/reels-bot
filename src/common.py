@@ -4,7 +4,9 @@ import difflib
 import json
 import operator
 import os
+import random
 import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -17,7 +19,7 @@ OUT = ROOT / "output"
 OUT.mkdir(exist_ok=True)
 
 GEM = "https://generativelanguage.googleapis.com/v1beta"
-MIN_GAP = 4.5  # detik antar panggilan Gemini (jaga batas gratis ~15 per menit)
+MIN_GAP = 3.0  # detik antar panggilan Gemini (jaga batas gratis ~15 per menit)
 _last_call = 0.0
 
 
@@ -193,8 +195,13 @@ def gemini_text(prompt, system=None, temperature=0.8):
 
 
 def gemini_json(prompt, system=None, temperature=0.8):
-    text, _ = _call(prompt, system, True, False, temperature)
-    return extract_json(text)
+    for i in range(2):
+        text, _ = _call(prompt, system, True, False, temperature)
+        try:
+            return extract_json(text)
+        except Exception as e:
+            log(f"[gemini] jawaban bukan JSON yang valid ({e}), mengulang")
+    raise RuntimeError("AI memberi jawaban yang tidak bisa dibaca. Coba lagi.")
 
 
 def gemini_grounded(prompt, system=None, temperature=0.3):
@@ -262,15 +269,51 @@ def cek_perhitungan(daftar):
 DB_PATH = DATA / "topics_db.json"
 
 
+DB_DIR = DATA / "topik"
+KOLOM_DB = ("disetujui", "dibuang", "dibuat_ulang")
+
+
 def load_db():
-    db = load_json(DB_PATH, {}) or {}
-    for k in ("disetujui", "dibuang", "dibuat_ulang"):
-        db.setdefault(k, [])
+    """Database topik: satu file per topik di data/topik/<kolom>/ (aman dari bentrok saat banyak proses jalan)."""
+    db = {k: [] for k in KOLOM_DB}
+    lama = load_json(DB_PATH, {}) or {}
+    for k in KOLOM_DB:
+        db[k] += lama.get(k, [])
+        d = DB_DIR / k
+        if d.exists():
+            for f in sorted(d.glob("*.json")):
+                x = load_json(f)
+                if x:
+                    db[k].append(x)
     return db
 
 
-def save_db(db):
-    save_json(DB_PATH, db)
+def tambah_db(kolom, item):
+    nama = f"{int(time.time() * 1000)}-{random.randint(100, 999)}.json"
+    save_json(DB_DIR / kolom / nama, item)
+
+
+def sinkron_repo(pesan="update data pabrik"):
+    """Simpan perubahan folder data ke GitHub SEKARANG (hanya saat jalan di GitHub Actions)."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return True
+
+    def sh(*a):
+        return subprocess.run(a, cwd=ROOT, capture_output=True, text=True)
+    sh("git", "config", "user.name", "pabrik-bot")
+    sh("git", "config", "user.email", "pabrik-bot@users.noreply.github.com")
+    sh("git", "add", "data")
+    if sh("git", "diff", "--cached", "--quiet").returncode == 0:
+        return True
+    sh("git", "commit", "-m", pesan)
+    cabang = os.environ.get("GITHUB_REF_NAME", "main")
+    for i in range(4):
+        sh("git", "pull", "--rebase", "origin", cabang)
+        if sh("git", "push").returncode == 0:
+            return True
+        time.sleep(3 + 3 * i)
+    log("[git] gagal menyimpan data ke repo")
+    return False
 
 
 def mirip(a, b):

@@ -34,6 +34,15 @@ def keyboard(job):
     ]}
 
 
+def menu_markup():
+    return {"inline_keyboard": [
+        [{"text": "🎬 MODE 1 · Dua Nasib (split screen)", "callback_data": "m:1"}],
+        [{"text": "🕌 MODE 2 · Paper-cut Dakwah", "callback_data": "m:2"}],
+        [{"text": "📊 MODE 3 · Bedah Bisnis Blueprint", "callback_data": "m:3"}],
+        [{"text": "📋 Status", "callback_data": "status"}, {"text": "🛑 Hentikan", "callback_data": "stop"}],
+    ]}
+
+
 def kirim_teks(chat, teks, markup=None):
     p = {"chat_id": chat, "text": teks[:4000], "disable_web_page_preview": True}
     if markup:

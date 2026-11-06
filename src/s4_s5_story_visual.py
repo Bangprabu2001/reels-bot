@@ -108,7 +108,7 @@ Babak 4: wide shot kedua tokoh duduk berhadapan di warung kopi lama 10 tahun kem
     }[mode["id"]]
     prompt = f"""Kamu bagian VISUAL. Buat TEPAT 4 prompt gambar bahasa Inggris (satu per babak), sangat deskriptif, untuk model text-to-image.
 Karakter tetap (WAJIB diulang di tiap prompt supaya konsisten): {json.dumps(cerita.get('karakter', {}), ensure_ascii=False)}
-Isi per babak (voiceover/ringkasan): {json.dumps([{'no': b['no'], 'voiceover': b['voiceover'][:240], 'judul_layar': b.get('judul_layar', ''), 'catatan': b.get('catatan_visual', '')} for b in cerita['babak']], ensure_ascii=False)}
+Isi per babak (voiceover/ringkasan): {json.dumps([{'no': b['no'], 'voiceover': str(b.get('voiceover', ''))[:240], 'judul_layar': b.get('judul_layar', ''), 'catatan': b.get('catatan_visual', '')} for b in cerita['babak']], ensure_ascii=False)}
 Petunjuk komposisi MODE {mode['id']}:
 {petunjuk}
 Jangan menulis teks/huruf di dalam gambar (teks dipasang saat editing). Jangan menyebut gaya lain di luar gaya mode ini.

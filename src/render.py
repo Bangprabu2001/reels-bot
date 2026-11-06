@@ -200,7 +200,7 @@ def bikin_suara(cerita, mode, folder):
     arr, t, batas, kalimat, asli, total_k = [np.zeros(int(SR * 0.3), np.int16)], 0.3, [], [], 0, 0
     for bi, b in enumerate(cerita["babak"]):
         mulai = 0.0 if bi == 0 else t
-        for j, k in enumerate(pecah_kalimat(b["voiceover"])):
+        for j, k in enumerate(pecah_kalimat(b.get("voiceover", ""))):
             mp3 = Path(folder) / f"vo_{bi}_{j}.mp3"
             a = None
             total_k += 1
