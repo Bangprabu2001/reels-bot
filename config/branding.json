@@ -1,0 +1,17 @@
+{
+  "logo": {
+    "aktif": true,
+    "file": "assets/branding/logo.png",
+    "posisi": "atas-tengah",
+    "lebar_persen": 20,
+    "transparansi": 100
+  },
+  "watermark": {
+    "aktif": true,
+    "file": "assets/branding/watermark.png",
+    "teks": "",
+    "posisi": "bawah-tengah",
+    "lebar_persen": 40,
+    "transparansi": 65
+  }
+}

@@ -1,0 +1,3 @@
+MUSIK LATAR (opsional)
+Upload file musik bernama persis  latar.mp3  ke folder ini. Volume diatur di config/pengaturan.json ("musik" -> "volume").
+Pakai musik bebas hak cipta (misalnya dari perpustakaan audio TikTok/YouTube Studio) dan yang tidak jedag-jedug.

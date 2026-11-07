@@ -1,0 +1,8 @@
+{
+  "jumlah_soal": 5,
+  "hitung_mundur_detik": 4,
+  "durasi_min_detik": 60,
+  "durasi_maks_detik": 90,
+  "suara": {"aktif": true, "nama": "id-ID-ArdiNeural", "kecepatan": "+8%", "nada": "+0Hz"},
+  "musik": {"aktif": true, "file": "assets/musik/latar.mp3", "volume": 0.12}
+}

@@ -1,0 +1,8 @@
+LOGO DAN WATERMARK
+1. Upload file bernama persis  logo.png  ke folder ini (assets/branding/).  PNG transparan, kotak sekitar 512x512.
+2. Upload file bernama persis  watermark.png  ke folder ini.  PNG transparan, lebar minimal 600 piksel.
+   Belum punya gambar watermark? Isi saja "teks" di config/branding.json, contoh: "teks": "@usernamekamu"
+3. Atur posisi, ukuran, transparansi di config/branding.json:
+   posisi: atas-kiri, atas-tengah, atas-kanan, bawah-kiri, bawah-tengah, bawah-kanan
+   lebar_persen: ukuran (persen lebar layar)   transparansi: 0-100   aktif: true / false
+Kalau file belum ada, bagian itu dilewati (tidak error).
