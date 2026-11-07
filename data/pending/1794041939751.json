@@ -1,0 +1,84 @@
+{
+  "job": "1794041939751",
+  "tema": "Jabatan Struktur Komite RT Absurd",
+  "soal": [
+    {
+      "tipe": "logika",
+      "q": "Jam dinding berdetak 3 kali dalam 2 detik. Berapa detakan dalam 4 detik?",
+      "a": "5 detakan",
+      "a2": "Detakan terjadi di detik ke-0, 1, 2, 3, dan 4. Jeda antar detakan adalah 1 detik."
+    },
+    {
+      "tipe": "tebakan",
+      "q": "Benda apa yang kalau dibeli warnanya hitam, dipakai warnanya merah, dibuang warnanya abu-abu?",
+      "a": "Arang",
+      "a2": "Baru dibeli warnanya hitam, saat membara jadi merah, lalu dibuang saat jadi abu gosok."
+    },
+    {
+      "tipe": "logika",
+      "q": "Satu ember penuh air beratnya 10 kilo. Dikasih apa biar beratnya jadi 5 kilo?",
+      "a": "Lubang",
+      "a2": "Lubang bikin airnya keluar sebagian, jadi berat keseluruhan ember berkurang."
+    },
+    {
+      "tipe": "tebakan",
+      "q": "Pintu apa yang meski didorong sepuluh pria kekar tetap gak bakal bisa terbuka?",
+      "a": "Pintu yang tulisannya ditarik",
+      "a2": "Mau didorong pakai tenaga dalam juga gak bakal terbuka kalau harusnya ditarik."
+    },
+    {
+      "tipe": "jebakan",
+      "q": "Berapa banyak angka 9 dari bilangan 1 sampai 100?",
+      "a": "20 buah",
+      "a2": "Jangan lupa hitung angka 9 di deret puluhan: 90, 91, 92, sampai 99 ada dua angka 9."
+    }
+  ],
+  "gelar": [
+    {
+      "nama": "Ketua Seksi Pengawas Kucing",
+      "tagline": "Otak encer setara Google Maps, bebas iuran ronda seumur hidup."
+    },
+    {
+      "nama": "Wakil Bidang Pergosipan Pos ronda",
+      "tagline": "Pintar dikit lagi bisa menggeser dominasi Pak RT."
+    },
+    {
+      "nama": "Sekretaris Humas Nyamuk Skincare",
+      "tagline": "Lumayan buat nambah portofolio di CV kerjaan kamu."
+    },
+    {
+      "nama": "Koor Penanggung Jawab Sandal Hilang",
+      "tagline": "Fokus mengamankan sandal jepit warga ketimbang mikir soal kuis."
+    }
+  ],
+  "durasi": 94.108,
+  "kualitas": {
+    "lucu": 7.4,
+    "orisinal": 3.8,
+    "salah": [],
+    "ambigu": [
+      1,
+      4
+    ],
+    "aman": true
+  },
+  "caption": "Berapa skor kuis kamu kali ini? Jangan malu untuk mengakui jabatan RT baru kamu di kolom komentar. Tag teman kamu yang cocok dapat jabatan paling bawah!",
+  "hashtag": [
+    "#kuisviral",
+    "#tebaktebakan",
+    "#asahotak",
+    "#humorindonesia",
+    "#kuisreels",
+    "#videoviral",
+    "#logikagila"
+  ],
+  "judul_pilihan": [
+    "Kuis RT Paling Absurd",
+    "Tes IQ Warga RT",
+    "Uji Logika Kocak"
+  ],
+  "catatan": [
+    "Durasi 94 detik melebihi 90 detik (soal/penjelasan terlalu panjang).",
+    "Soal nomor [1, 4] dinilai bisa punya lebih dari satu jawaban. Cek dulu sebelum upload."
+  ]
+}
