@@ -1,0 +1,84 @@
+{
+  "job": "1794065296916",
+  "jenis": "teka",
+  "tema": "Ketajaman Intuisi",
+  "soal": [
+    {
+      "q": "Punya leher tapi tak berkepala, punya badan tapi tak bernyawa. Selalu memakai topi, apakah itu?",
+      "a": "Botol sirup atau minuman",
+      "a2": "Botol memiliki bagian leher dan badan, serta ditutup oleh tutup botol yang diibaratkan topi."
+    },
+    {
+      "q": "Makin sering kamu membuangnya, wadahnya justru makin penuh dan berat. Benda apakah ini?",
+      "a": "Kantong sampah",
+      "a2": "Setiap kali kita membuang sesuatu ke dalamnya, isi kantong sampah justru makin menumpuk dan bertambah berat."
+    },
+    {
+      "q": "Bisa bergerak mengelilingi dunia, namun selama perjalanan ia selalu diam di pojokan. Apakah itu?",
+      "a": "Prangko",
+      "a2": "Prangko tertempel diam di sudut amplop surat, namun ikut terbang menjelajahi berbagai belahan dunia."
+    },
+    {
+      "q": "Tali dipotong jadi dua, lalu diikat kembali. Mengapa sekarang jumlah ujungnya bertambah banyak?",
+      "a": "Dua simpul ikatan memiliki ujung",
+      "a2": "Dua potong tali punya 4 ujung, dan ikatan biasa hanya menyatukan bagian tengah tanpa menghilangkan ujung bebas."
+    },
+    {
+      "q": "Jika ditimbang di udara terbuka, mana yang menunjukkan angka timbangan lebih berat: 1 kg besi atau 1 kg kapas?",
+      "a": "Satu kilogram besi",
+      "a2": "Volume kapas jauh lebih besar sehingga mendapat gaya apung udara lebih tinggi, membuat timbangan membacanya sedikit lebih ringan."
+    }
+  ],
+  "baris": [
+    {
+      "label": "5/5",
+      "nama": "Pakar Logika Murni",
+      "deskripsi": "Memiliki kepekaan observasi sempurna serta pemahaman prinsip fisika yang sangat tajam dan presisi."
+    },
+    {
+      "label": "4/5",
+      "nama": "Pemikir Kritis Andal",
+      "deskripsi": "Mampu melihat celah logika dengan sangat baik dan jarang terjebak pola pikir umum."
+    },
+    {
+      "label": "3/5",
+      "nama": "Pengamat Berbakat",
+      "deskripsi": "Cukup tanggap terhadap teka-teki logika, hanya perlu sedikit mengasah pembuktian ilmiah."
+    },
+    {
+      "label": "0-2",
+      "nama": "Eksplorer Potensial",
+      "deskripsi": "Pondasi berpikir sudah terbentuk, terus latih intuisimu untuk melihat dari sudut pandang berbeda."
+    }
+  ],
+  "durasi": 230.762,
+  "kualitas": {
+    "seru": 7.2,
+    "orisinal": 4.6,
+    "salah": [],
+    "ambigu": [
+      1,
+      4
+    ],
+    "masalah": []
+  },
+  "caption": "Yakin intuisimu cukup tajam buat sapu bersih 5 teka-teki ini? Hati-hati jebakan ilmiah di nomor terakhir yang sering bikin orang salah tebak. Tulis skormu di kolom komentar!",
+  "hashtag": [
+    "#TekaTekiLogika",
+    "#UjiKejeniusan",
+    "#TebakTebakanSeru",
+    "#AsahOtak",
+    "#MindBlowing",
+    "#KuisTikTok",
+    "#FaktaUnik"
+  ],
+  "judul_pilihan": [
+    "Uji Ketajaman Logika",
+    "Awas Terjebak Nomor 5!",
+    "Teka-Teki Bikin Mikir"
+  ],
+  "catatan": [
+    "Durasi 231 detik, cukup panjang. Platform tertentu membatasi durasi Reels/Shorts.",
+    "Soal nomor [1, 4] dinilai bisa punya lebih dari satu jawaban. Cek dulu sebelum upload."
+  ]
+}
