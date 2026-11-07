@@ -4,15 +4,16 @@ import time
 import traceback
 
 from .common import DATA, OUT, load_json, log, save_json, sinkron_repo, tambah_db, ROOT
-from .penulis import buat_paket
+from .penulis import JENIS, buat_paket
 from .render import bikin_thumbnail, render_video, susun_jadwal
 from .suara import buat_narasi, susun_audio
 from .telegram import kirim_hasil, kirim_teks, menu_markup
 
 
 def pengaturan():
-    cfg = {"jumlah_soal": 5, "hitung_mundur_detik": 4, "durasi_min_detik": 60, "durasi_maks_detik": 90,
-           "suara": {"aktif": True, "nama": "id-ID-ArdiNeural", "kecepatan": "+6%", "nada": "+0Hz"},
+    cfg = {"jumlah_soal": 5, "waktu_berpikir": {"tebak": 7, "teka": 10, "logika": 12, "psiko": 8}, "tambahan_soal_terakhir": 3,
+           "durasi_peringatan_detik": 180,
+           "suara": {"aktif": True, "nama": "id-ID-ArdiNeural", "kecepatan": "-12%", "nada": "+0Hz"},
            "musik": {"aktif": True, "file": "assets/musik/latar.mp3", "volume": 0.12}}
     cfg.update(load_json(ROOT / "config" / "pengaturan.json", {}) or {})
     return cfg
@@ -32,14 +33,16 @@ def produksi(paket, folder, cfg):
     return mp4, thumb, jad, s_ok, s_tot
 
 
-def buat_video(chat_id):
-    """Membuat 1 video kuis dan mengirimnya. Mengembalikan job id atau None."""
+def buat_video(chat_id, jenis):
+    """Membuat 1 video dari jenis tertentu dan mengirimnya. Mengembalikan job id atau None."""
     tahap = "awal"
     try:
+        if jenis not in JENIS:
+            jenis = random.choice(list(JENIS))
         cfg = pengaturan()
         job = f"{int(time.time())}{random.randint(100, 999)}"
-        tahap = "menulis dan menguji soal"
-        paket, kual = buat_paket(int(cfg["jumlah_soal"]))
+        tahap = f"menulis dan menguji soal ({JENIS[jenis]['nama']})"
+        paket, kual = buat_paket(jenis, int(cfg["jumlah_soal"]))
         tahap = "membuat suara dan video"
         folder = OUT / job
         folder.mkdir(parents=True, exist_ok=True)
@@ -52,8 +55,10 @@ def buat_video(chat_id):
             catatan.append(f"Suara narator hanya berhasil {s_ok} dari {s_tot} bagian; ada bagian hening. Sebaiknya BUAT ULANG.")
         if kual.get("ambigu"):
             catatan.append(f"Soal nomor {kual['ambigu']} dinilai bisa punya lebih dari satu jawaban. Cek dulu sebelum upload.")
-        pk = {"job": job, "tema": paket["tema_gelar"], "soal": paket["soal"], "gelar": paket["gelar"], "durasi": jad["total"],
-              "kualitas": kual, "caption": paket.get("caption", ""), "hashtag": paket.get("hashtag", []),
+        if jenis == "psiko":
+            catatan.append("Tes psikologi hanya hiburan, bukan diagnosis. Sudah tertulis di video.")
+        pk = {"job": job, "jenis": jenis, "tema": paket.get("tema_gelar", ""), "soal": paket["soal"], "baris": paket["baris"],
+              "durasi": jad["total"], "kualitas": kual, "caption": paket.get("caption", ""), "hashtag": paket.get("hashtag", []),
               "judul_pilihan": paket.get("judul_pilihan") or [paket["soal"][0]["q"]], "catatan": catatan}
         save_json(DATA / "pending" / f"{job}.json", pk)
         if not sinkron_repo(f"video {job}"):
@@ -67,5 +72,5 @@ def buat_video(chat_id):
 
 
 def catat(kolom, pk):
-    tambah_db(kolom, {"judul": pk["soal"][0]["q"], "tema": pk["tema"], "soal": [s["q"] for s in pk["soal"]],
-                      "tanggal": time.strftime("%Y-%m-%d")})
+    tambah_db(kolom, {"judul": pk["soal"][0]["q"], "jenis": pk.get("jenis", "teka"), "tema": pk.get("tema", ""),
+                      "soal": [s["q"] for s in pk["soal"]], "tanggal": time.strftime("%Y-%m-%d")})

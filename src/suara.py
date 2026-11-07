@@ -16,23 +16,39 @@ SR = 24000
 OFFLINE = os.environ.get("OFFLINE", "") == "1"
 
 
+GAP = 0.45   # jeda antar bagian kalimat (detik)
+
+
 def skor_kata(i, n):
-    """Skor untuk dibaca: tingkat 0 = n benar, 1 = n-1, 2 = n-2, 3 = 0 sampai n-3."""
+    """Skor untuk dibaca: baris 0 = n benar, 1 = n-1, 2 = n-2, 3 = 0 sampai n-3."""
     if i < 3:
         return ANGKA_KATA.get(n - i, str(n - i))
     return f"nol sampai {ANGKA_KATA.get(n - 3, str(n - 3))}"
 
 
 def teks_narasi(p):
-    n = len(p["soal"])
-    t = {
-        "hook": f"Jawab {ANGKA_KATA.get(n, n)} teka-teki ini! Lihat nilaimu di akhir.",
-        "soal": [str(s["q"]) for s in p["soal"]],
-        "jawab": [f"Jawabannya, {str(s['a']).rstrip('.!')}." for s in p["soal"]],     # penjelasan (a2) dibaca penonton di layar
-        "intro": "Ini gelarmu!",
-        "baris": [f"Benar {skor_kata(i, n)}. {g['nama']}." for i, g in enumerate(p["gelar"])],
-        "penutup": "Tulis gelarmu di komentar!",
-    }
+    """Setiap bagian = daftar segmen; antar segmen diberi jeda supaya enak didengar."""
+    n, jenis = len(p["soal"]), p["jenis"]
+    kn = ANGKA_KATA.get(n, str(n))
+    hook = {"tebak": f"Jawab {kn} tebak-tebakan ini! Lihat nilaimu di akhir.",
+            "teka": f"Jawab {kn} teka-teki ini! Lihat nilaimu di akhir.",
+            "logika": f"Tes logika. Kerjakan {kn} soal ini. Lihat levelmu di akhir.",
+            "psiko": f"Tes psikologi singkat. Jawab {kn} pertanyaan dengan jujur. Catat pilihanmu, hasilnya ada di akhir."}[jenis]
+    t = {"hook": [hook], "soal": [], "jawab": [], "baris": []}
+    for s in p["soal"]:
+        if jenis == "psiko":
+            t["soal"].append([str(s["q"])] + [f"Pilihan {h}. {str(s['opsi'][h]).rstrip('.')}." for h in "ABC"])
+        else:
+            t["soal"].append([str(s["q"])])
+            seg = [f"Jawabannya, {str(s['a']).rstrip('.!')}."]
+            if str(s.get("a2", "")).strip():
+                seg.append(str(s["a2"]))
+            t["jawab"].append(seg)
+    for i, b in enumerate(p["baris"]):
+        awal = f"Kalau kamu paling banyak memilih {b['label']}." if jenis == "psiko" else f"Kalau benar {skor_kata(i, n)}."
+        t["baris"].append([awal, f"{str(b['nama']).rstrip('.')}.", str(b["deskripsi"])])
+    t["intro"] = ["Ini hasil tesmu."] if jenis == "psiko" else ["Ini levelmu."]
+    t["penutup"] = ["Tulis tipemu di komentar!"] if jenis == "psiko" else ["Tulis levelmu di komentar!"]
     return t
 
 
@@ -49,42 +65,53 @@ def _ke_array(path):
 
 def _satu(teks, folder, nama_file, cfg):
     """Satu klip suara. Gagal -> keheningan dengan durasi perkiraan (video tetap jadi)."""
-    s = cfg["suara"]
-    if s.get("aktif", True) and not OFFLINE:
+    sc = cfg["suara"]
+    if sc.get("aktif", True) and not OFFLINE:
         mp3 = Path(folder) / f"{nama_file}.mp3"
         for _ in range(3):
             try:
-                asyncio.run(_edge(teks, mp3, s["nama"], s["kecepatan"], s["nada"]))
+                asyncio.run(_edge(teks, mp3, sc["nama"], sc["kecepatan"], sc["nada"]))
                 a = _ke_array(mp3)
                 if a is not None and len(a) > 0:
                     return a, True
             except Exception as e:
                 log(f"[suara] {nama_file}: {e}")
                 time.sleep(2)
-    dur = max(1.5, len(teks.split()) / 2.4)
-    return np.zeros(int(SR * dur), np.float32), False
+    return np.zeros(int(SR * max(1.5, len(teks.split()) / 2.0)), np.float32), False
+
+
+def _gabung(segmen, folder, nama, cfg, hitung):
+    """Gabungkan beberapa segmen dengan jeda. Mengembalikan (array, durasi_tiap_segmen)."""
+    bagian, durs = [], []
+    for k, teks in enumerate(segmen):
+        a, b = _satu(teks, folder, f"{nama}_{k}", cfg)
+        hitung[0] += int(b); hitung[1] += 1
+        bagian.append(a); durs.append(len(a) / SR)
+        if k < len(segmen) - 1:
+            bagian.append(np.zeros(int(SR * GAP), np.float32))
+    return np.concatenate(bagian), durs
 
 
 def buat_narasi(p, folder, cfg):
     """Mengembalikan (klip, durasi, jumlah_berhasil, jumlah_total)."""
-    t = teks_narasi(p)
-    klip = {"hook": None, "soal": [], "jawab": [], "intro": None, "baris": [], "penutup": None}
-    ok = tot = 0
-
-    def ambil(teks, nama):
-        nonlocal ok, tot
-        a, b = _satu(teks, folder, nama, cfg)
-        ok += int(b); tot += 1
-        return a
-    klip["hook"] = ambil(t["hook"], "hook")
-    for i, x in enumerate(t["soal"]): klip["soal"].append(ambil(x, f"soal{i}"))
-    for i, x in enumerate(t["jawab"]): klip["jawab"].append(ambil(x, f"jawab{i}"))
-    klip["intro"] = ambil(t["intro"], "intro")
-    for i, x in enumerate(t["baris"]): klip["baris"].append(ambil(x, f"baris{i}"))
-    klip["penutup"] = ambil(t["penutup"], "penutup")
-    dur = {"hook": len(klip["hook"]) / SR, "soal": [len(a) / SR for a in klip["soal"]], "jawab": [len(a) / SR for a in klip["jawab"]],
-           "intro": len(klip["intro"]) / SR, "baris": [len(a) / SR for a in klip["baris"]], "penutup": len(klip["penutup"]) / SR}
-    return klip, dur, ok, tot
+    t = teks_narasi(p); h = [0, 0]
+    klip = {"soal": [], "jawab": [], "baris": []}; dur = {"soal": [], "soal_seg": [], "jawab": [], "baris": []}
+    klip["hook"], _ = _gabung(t["hook"], folder, "hook", cfg, h)
+    for i, seg in enumerate(t["soal"]):
+        a, d = _gabung(seg, folder, f"soal{i}", cfg, h); klip["soal"].append(a); dur["soal_seg"].append(d)
+    for i, seg in enumerate(t["jawab"]):
+        a, _ = _gabung(seg, folder, f"jawab{i}", cfg, h); klip["jawab"].append(a)
+    klip["intro"], _ = _gabung(t["intro"], folder, "intro", cfg, h)
+    for i, seg in enumerate(t["baris"]):
+        a, _ = _gabung(seg, folder, f"baris{i}", cfg, h); klip["baris"].append(a)
+    klip["penutup"], _ = _gabung(t["penutup"], folder, "penutup", cfg, h)
+    dur["hook"] = len(klip["hook"]) / SR
+    dur["soal"] = [len(a) / SR for a in klip["soal"]]
+    dur["jawab"] = [len(a) / SR for a in klip["jawab"]]
+    dur["intro"] = len(klip["intro"]) / SR
+    dur["baris"] = [len(a) / SR for a in klip["baris"]]
+    dur["penutup"] = len(klip["penutup"]) / SR
+    return klip, dur, h[0], h[1]
 
 
 # ------------------------------------------------------------------ efek bunyi + penyusunan trek
@@ -126,16 +153,18 @@ def susun_audio(klip, jad, cfg, out_wav):
         for k in range(int(J["cd"])):
             _nada(a, J["s"] + J["soal"] + k, 660, 0.18, 0.3)
         ta = J["s"] + J["soal"] + J["cd"]
-        _nada(a, ta, 880, 0.8, 0.4); _nada(a, ta + 0.08, 1320, 0.8, 0.25)
-        _taruh(a, klip["jawab"][i], ta + 0.5)
+        if klip["jawab"]:
+            _nada(a, ta, 880, 0.8, 0.4); _nada(a, ta + 0.08, 1320, 0.8, 0.25)
+            _taruh(a, klip["jawab"][i], ta + 0.5)
     R = jad["reward"]
     _taruh(a, klip["intro"], R + 0.3)
     notes = [880, 659, 523, 440]
-    for k in range(4):
-        _nada(a, R + jad["baris"][k], notes[k], 0.7, 0.35)
+    for k in range(len(klip["baris"])):
+        _nada(a, R + jad["baris"][k], notes[k % 4], 0.7, 0.35)
         _taruh(a, klip["baris"][k], R + jad["baris"][k] + 0.2)
+    akhir = jad["baris"][jad["urut"][-1]]
     for k, f in enumerate([523, 659, 784, 1047]):
-        _nada(a, R + jad["baris"][0] + 0.1 + k * 0.09, f, 1.2, 0.28, 3)
+        _nada(a, R + akhir + 0.1 + k * 0.09, f, 1.2, 0.28, 3)
     _taruh(a, klip["penutup"], R + jad["penutup_t"] + 0.1)
     pk = float(np.max(np.abs(a))) or 1.0
     a = a / max(1.0, pk / 0.95)

@@ -36,8 +36,9 @@ def keyboard(job):
 
 def menu_markup():
     return {"inline_keyboard": [
-        [{"text": "🎯 Buat 1 video kuis", "callback_data": "b:1"}],
-        [{"text": "🎯🎯🎯 Buat 3 video kuis", "callback_data": "b:3"}],
+        [{"text": "🤣 Tebak-tebakan", "callback_data": "b:tebak"}, {"text": "🧩 Teka-teki", "callback_data": "b:teka"}],
+        [{"text": "🧠 Tes Psikologi", "callback_data": "b:psiko"}, {"text": "📐 Tes Logika", "callback_data": "b:logika"}],
+        [{"text": "🎲 Acak 4 video (semua jenis)", "callback_data": "b:acak"}],
         [{"text": "📋 Status", "callback_data": "status"}, {"text": "🛑 Hentikan", "callback_data": "stop"}],
     ]}
 
@@ -52,12 +53,19 @@ def kirim_teks(chat, teks, markup=None):
         log(f"[telegram] gagal kirim teks: {e}")
 
 
+NAMA_JENIS = {"tebak": "Tebak-tebakan", "teka": "Teka-teki", "logika": "Tes Logika", "psiko": "Tes Psikologi"}
+
+
 def format_paket(pk):
-    L = [f"🎯 Kuis siap | Lucu {pk['kualitas'].get('lucu', '-')}/10, orisinal {pk['kualitas'].get('orisinal', '-')}/10",
-         f"🏷 Tema gelar: {pk['tema']}", f"⏱ Durasi: {pk['durasi']:.0f} detik", "", "❓ Soal:"]
+    jenis = pk.get("jenis", "teka")
+    L = [f"🎯 {NAMA_JENIS.get(jenis, jenis)} siap | seru {pk['kualitas'].get('seru', '-')}/10",
+         f"⏱ Durasi: {pk['durasi']:.0f} detik", "", "❓ Soal:"]
     for i, s in enumerate(pk["soal"], 1):
-        L.append(f"{i}. {s['q']}  →  {s['a']}")
-    L += ["", "🏆 Gelar:"] + [f"- {g['nama']}" for g in pk["gelar"]]
+        if jenis == "psiko":
+            L.append(f"{i}. {s['q']}  (A/B/C)")
+        else:
+            L.append(f"{i}. {s['q']}  →  {s['a']}")
+    L += ["", "🏆 Hasil/level:"] + [f"- {b['label']}: {b['nama']}" for b in pk["baris"]]
     L += ["", "🏷 3 pilihan judul:"] + [f"{i}. {j}" for i, j in enumerate(pk["judul_pilihan"][:3], 1)]
     L += ["", "📝 Caption:", pk["caption"], "", " ".join(pk["hashtag"])]
     if pk.get("catatan"):
