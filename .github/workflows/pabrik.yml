@@ -1,16 +1,16 @@
-name: Pabrik Konten
+name: Pabrik Kuis
 
 # Dinyalakan oleh Cloudflare Worker saat kamu menekan tombol di Telegram.
-# Bisa juga dijalankan manual: Actions -> Pabrik Konten -> Run workflow.
+# Bisa juga manual: Actions -> Pabrik Kuis -> Run workflow.
 on:
   workflow_dispatch:
     inputs:
       aksi:
-        description: "mode / ok / re / no / caption  (dari tombol Telegram)"
+        description: "buat / ok / re / no / caption  (otomatis dari tombol Telegram)"
         required: true
-        default: "mode"
+        default: "buat"
       data:
-        description: "mode: 1, 2, atau 3 (boleh 2:3 = tiga video). Tombol lain: otomatis"
+        description: "buat: 1 atau 3 (jumlah video). Tombol lain: otomatis"
         required: false
         default: "1"
       chat:
@@ -29,8 +29,6 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-      POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       AKSI: ${{ github.event.inputs.aksi }}
       DATA_INPUT: ${{ github.event.inputs.data }}
@@ -46,11 +44,13 @@ jobs:
       - name: Pasang pustaka Python
         run: pip install -r requirements.txt
 
-      - name: Pasang ffmpeg dan font (hanya untuk membuat video)
-        if: env.AKSI == 'mode' || env.AKSI == 're' || env.AKSI == 'no'
+      - name: Pasang ffmpeg (hanya untuk membuat video)
+        if: env.AKSI == 'buat' || env.AKSI == 're' || env.AKSI == 'no'
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-core libraqm0 libfribidi0
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -y
+            sudo apt-get install -y ffmpeg
+          fi
 
       - name: Jalankan pabrik
         run: python -m src.bot --aksi "$AKSI" --data "$DATA_INPUT" --chat "$CHAT_INPUT"
